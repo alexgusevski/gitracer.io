@@ -86,7 +86,7 @@ npx wrangler deploy
 
 The GitHub Actions workflow runs tests/builds, applies remote migrations, and deploys on `main`. Add repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` before relying on it.
 
-After buying `gitracer.io`, add it as a Worker custom domain. Canonical and OG URLs already target the final domain.
+`gitracer.io` and `www.gitracer.io` are declared as Worker custom domains. The domain is registered at Vercel and delegates DNS to Cloudflare; `www` permanently redirects to the canonical apex URL.
 
 ## Verification
 

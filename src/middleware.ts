@@ -8,7 +8,12 @@ const securityHeaders: Record<string, string> = {
   'X-Frame-Options': 'DENY',
 };
 
-export const onRequest = defineMiddleware(async (_context, next) => {
+export const onRequest = defineMiddleware(async (context, next) => {
+  if (context.url.hostname === 'www.gitracer.io') {
+    const canonical = new URL(context.url.pathname + context.url.search, 'https://gitracer.io');
+    return context.redirect(canonical.toString(), 308);
+  }
+
   const response = await next();
   for (const [name, value] of Object.entries(securityHeaders)) response.headers.set(name, value);
   return response;
