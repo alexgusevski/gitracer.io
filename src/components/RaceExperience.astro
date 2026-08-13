@@ -130,10 +130,15 @@ const leaderText = data.racers.length === 1
           line.style.strokeDashoffset = '1';
           line.getBoundingClientRect();
           requestAnimationFrame(() => { line.style.strokeDashoffset = '0'; });
-          line.addEventListener('transitionend', () => {
+          const finishDrawing = () => {
             line.style.strokeDasharray = 'none';
             line.style.strokeDashoffset = '0';
-          }, { once: true });
+          };
+          line.addEventListener('transitionend', finishDrawing, { once: true });
+          // Browsers can omit transitionend for an SVG path when several paths
+          // begin their transitions in the same frame. Never leave the dash
+          // mask behind, because it hides the middle of an otherwise valid line.
+          window.setTimeout(finishDrawing, 1_250);
         });
       }
     };
