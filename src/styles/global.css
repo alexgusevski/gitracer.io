@@ -227,7 +227,7 @@ img { display: block; max-width: 100%; }
 .error-code { color: var(--green); font-size: 12px; }
 .error-page h1, .content-page h1 { max-width: 850px; margin: 12px 0 18px; font-family: var(--display); font-size: clamp(42px, 7vw, 76px); line-height: 1; letter-spacing: -.06em; }
 .error-page p { max-width: 620px; margin: 0 0 28px; color: var(--muted); }
-.content-page { width: min(840px, calc(100% - 40px)); }
+.content-page { width: min(840px, calc(100% - 40px)); margin-inline: auto; }
 .content-page .lede { color: var(--muted); font-size: 16px; line-height: 1.75; }
 .content-page h2 { margin: 54px 0 12px; font-family: var(--display); font-size: 29px; letter-spacing: -.04em; }
 .content-page p, .content-page li { color: var(--muted); }

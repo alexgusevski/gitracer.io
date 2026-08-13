@@ -7,6 +7,7 @@ import ThemeToggle from '../components/ThemeToggle.astro';
 
 // Keep the placements ready for launch without showing placeholder inventory.
 const SPONSORS_ENABLED = false;
+const SPONSOR_LINKS_ENABLED = false;
 
 interface Props {
   title?: string;
@@ -65,7 +66,7 @@ const {
         <nav aria-label="Main navigation">
           <a href="/">new race</a>
           <a href="/how-it-works">how it works</a>
-          <a href="/sponsor">sponsor</a>
+          {SPONSOR_LINKS_ENABLED && <a href="/sponsor">sponsor</a>}
         </nav>
         <ThemeToggle compact />
       </div>
@@ -80,7 +81,7 @@ const {
           <img src="/avatar/alexgusevski" alt="" width="34" height="34" />
           <span>built by <b>@alexgusevski</b></span>
         </a>
-        <nav aria-label="Footer navigation"><a href="/privacy">privacy</a><a href="/how-it-works">methodology</a><a href="/sponsor">sponsor</a><a href="https://github.com/alexgusevski/gitracer.io" rel="noreferrer">source ↗</a></nav>
+        <nav aria-label="Footer navigation"><a href="/privacy">privacy</a><a href="/how-it-works">methodology</a>{SPONSOR_LINKS_ENABLED && <a href="/sponsor">sponsor</a>}<a href="https://github.com/alexgusevski/gitracer.io" rel="noreferrer">source ↗</a></nav>
         <ThemeToggle />
       </div>
     </footer>
