@@ -6,7 +6,7 @@ import { loadRace } from './race';
 import { clientIp, runtimeEnv } from './server';
 import type { RaceData } from './types';
 
-const colors = ['#69558a', '#4f7b6f', '#a47852', '#9a6078', '#557b8b', '#7d7152'];
+const colors = ['#2da44e', '#8250df', '#0969da', '#bf3989', '#9a6700', '#cf222e'];
 
 function escapeHtml(value: unknown): string {
   return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character] ?? character);
@@ -55,23 +55,23 @@ export const GET: APIRoute = async ({ params, request, url, locals }) => {
     : 'Race your GitHub contribution history.';
 
   const chart = data
-    ? `<div style="position:relative;display:flex;flex:1;margin-top:34px;border-top:1px solid #ddd9df">
+    ? `<div style="position:relative;display:flex;flex:1;margin-top:34px;border-top:1px solid #30363d">
         <svg width="900" height="260" viewBox="0 0 900 260" style="position:absolute;left:0;bottom:0">
-          ${[0, 1, 2, 3].map((line) => `<line x1="0" x2="880" y1="${30 + line * 70}" y2="${30 + line * 70}" stroke="#ddd9df" stroke-dasharray="4 6"/>`).join('')}
+          ${[0, 1, 2, 3].map((line) => `<line x1="0" x2="880" y1="${30 + line * 70}" y2="${30 + line * 70}" stroke="#30363d" stroke-dasharray="4 6"/>`).join('')}
           ${data.racers.map((racer, index) => `<path d="${cumulativePath(data, index)}" transform="translate(0 10)" fill="none" stroke="${racer.color || colors[index]}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}
         </svg>
         <div style="position:absolute;right:0;bottom:18px;display:flex;flex-direction:column;align-items:flex-end">
           ${data.racers.map((racer) => `<div style="display:flex;align-items:center;margin-top:8px;font-size:17px"><span style="width:10px;height:10px;margin-right:9px;border-radius:99px;background:${racer.color}"></span>@${escapeHtml(racer.login)}<b style="margin-left:12px">${racer.total.toLocaleString()}</b></div>`).join('')}
         </div>
       </div>`
-    : '<div style="display:flex;align-items:center;flex:1;margin-top:48px;border-top:1px solid #ddd9df;color:#706b75;font-size:24px">type handles → pick a period → share the race</div>';
-  const html = `<div style="width:100%;height:100%;display:flex;flex-direction:column;padding:62px 70px;border-top:10px solid #69558a;background:#f5f3f0;color:#1d1b20;font-family:sans-serif">
+    : '<div style="display:flex;align-items:center;flex:1;margin-top:48px;border-top:1px solid #30363d;color:#c9d1d9;font-size:24px">type handles → pick a period → share the race</div>';
+  const html = `<div style="width:100%;height:100%;display:flex;flex-direction:column;padding:62px 70px;border-top:10px solid #2da44e;background:#0d1117;color:#ffffff;font-family:sans-serif">
     <div style="display:flex;align-items:center;justify-content:space-between">
-      <div style="display:flex;align-items:center;font-size:26px;font-weight:700"><span style="display:flex;align-items:center;justify-content:center;width:52px;height:42px;margin-right:14px;border-radius:8px;background:#1d1b20;box-shadow:0 6px 14px rgba(105,85,138,.22);color:#b8a5d0;font-size:17px">R/</span>gitracer<span style="color:#69558a">.io</span></div>
-      <div style="display:flex;align-items:center;padding:8px 14px;border:1px solid #b4aeba;border-radius:8px;color:#706b75;font-size:15px"><span style="color:#69558a;margin-right:8px">●</span> public GitHub data</div>
+      <div style="display:flex;align-items:center;font-size:26px;font-weight:700"><span style="display:flex;align-items:center;justify-content:center;width:52px;height:44px;margin-right:14px;border:1px solid #30363d;border-radius:10px;background:#010409;color:#f0f6fc;font-family:monospace;font-size:18px"><span style="color:#f0f6fc">&gt;</span><span style="color:#3fb950">_</span></span>gitracer<span style="color:#3fb950">.io</span></div>
+      <div style="display:flex;align-items:center;padding:8px 14px;border:1px solid #6e7681;border-radius:8px;color:#c9d1d9;font-size:15px"><span style="color:#3fb950;margin-right:8px">●</span> public GitHub data</div>
     </div>
     <div style="display:flex;flex-direction:column;margin-top:42px">
-      <div style="display:flex;color:#69558a;font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase">${escapeHtml(data ? `${data.range.label} · race in progress` : 'up to 6 racers · one shareable graph')}</div>
+      <div style="display:flex;color:#3fb950;font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase">${escapeHtml(data ? `${data.range.label} · race in progress` : 'up to 6 racers · one shareable graph')}</div>
       <div style="display:flex;max-width:1060px;margin-top:12px;font-size:${data && data.racers.length > 3 ? 54 : 66}px;font-weight:750;letter-spacing:-3.5px;line-height:1.04">${escapeHtml(headline)}</div>
     </div>
     ${chart}

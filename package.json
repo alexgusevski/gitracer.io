@@ -22,7 +22,7 @@
     "@astrojs/cloudflare": "^14.2.1",
     "@cf-wasm/og": "^0.4.1",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
-    "@fontsource-variable/space-grotesk": "^5.2.8",
+    "@fontsource-variable/mona-sans": "^5.3.0",
     "astro": "^7.2.1",
     "react": "^19.2.4"
   },
