@@ -7,7 +7,7 @@ const CACHE_CONTROL = 'public, max-age=31536000, s-maxage=31536000, immutable';
 
 function fallbackAvatar(login: string, status = 200): Response {
   const initial = login.slice(0, 1).toUpperCase().replace(/[^A-Z0-9]/g, '?');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" rx="32" fill="#0d1117"/><text x="80" y="103" text-anchor="middle" font-family="monospace" font-size="72" fill="#3fb950">${initial}</text></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" rx="32" fill="#08082f"/><text x="80" y="103" text-anchor="middle" font-family="monospace" font-size="72" fill="#9784ff">${initial}</text></svg>`;
   return new Response(svg, { status, headers: { 'Content-Type': 'image/svg+xml; charset=utf-8', 'Cache-Control': status === 200 ? CACHE_CONTROL : 'public, max-age=300' } });
 }
 

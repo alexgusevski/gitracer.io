@@ -1,18 +1,18 @@
 :root {
   color-scheme: light;
   --paper: #ffffff;
-  --paper-2: #f6f8fa;
+  --paper-2: #f6f7fb;
   --panel: #ffffff;
-  --ink: #1f2328;
-  --muted: #59636e;
-  --line: #d1d9e0;
-  --line-strong: #8c959f;
-  --green: #1f883d;
-  --green-bright: #2da44e;
-  --green-soft: #dafbe1;
-  --race: #1f883d;
-  --race-soft: #dafbe1;
-  --shadow: 0 8px 24px rgba(31, 35, 40, .08);
+  --ink: #16163a;
+  --muted: #555670;
+  --line: #d9d9e7;
+  --line-strong: #9a9bbd;
+  --green: #5146b8;
+  --green-bright: #6558d3;
+  --green-soft: #eeecff;
+  --race: #5146b8;
+  --race-soft: #eeecff;
+  --shadow: 0 8px 24px rgba(22, 22, 58, .09);
   --display: 'Mona Sans Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --sans: 'Mona Sans Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono Variable', ui-monospace, monospace;
@@ -20,37 +20,37 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --paper: #0d1117;
-  --paper-2: #010409;
-  --panel: #161b22;
+  --paper: #08082f;
+  --paper-2: #050522;
+  --panel: #12123d;
   --ink: #ffffff;
-  --muted: #c9d1d9;
-  --line: #30363d;
-  --line-strong: #6e7681;
-  --green: #3fb950;
-  --green-bright: #56d364;
-  --green-soft: #122117;
-  --race: #3fb950;
-  --race-soft: #122117;
-  --shadow: 0 12px 30px rgba(0, 0, 0, .3);
+  --muted: #d6d6e7;
+  --line: #303166;
+  --line-strong: #66679a;
+  --green: #9784ff;
+  --green-bright: #ad9eff;
+  --green-soft: #24245b;
+  --race: #9784ff;
+  --race-soft: #24245b;
+  --shadow: 0 12px 32px rgba(0, 0, 24, .4);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --paper: #0d1117;
-    --paper-2: #010409;
-    --panel: #161b22;
+    --paper: #08082f;
+    --paper-2: #050522;
+    --panel: #12123d;
     --ink: #ffffff;
-    --muted: #c9d1d9;
-    --line: #30363d;
-    --line-strong: #6e7681;
-    --green: #3fb950;
-    --green-bright: #56d364;
-    --green-soft: #122117;
-    --race: #3fb950;
-    --race-soft: #122117;
-    --shadow: 0 12px 30px rgba(0, 0, 0, .3);
+    --muted: #d6d6e7;
+    --line: #303166;
+    --line-strong: #66679a;
+    --green: #9784ff;
+    --green-bright: #ad9eff;
+    --green-soft: #24245b;
+    --race: #9784ff;
+    --race-soft: #24245b;
+    --shadow: 0 12px 32px rgba(0, 0, 24, .4);
   }
 }
 
@@ -119,7 +119,7 @@ img { display: block; max-width: 100%; }
 .hero__proof b { color: var(--green); }
 .hero__proof i { color: var(--line-strong); font-style: normal; }
 
-.ticker { overflow: hidden; border-top: 3px solid var(--race); border-bottom: 1px solid #10141d; background: #10141d; color: #eef1f6; white-space: nowrap; }
+.ticker { overflow: hidden; border-top: 3px solid var(--race); border-bottom: 1px solid #08082f; background: #08082f; color: #fff; white-space: nowrap; }
 .ticker > div { width: max-content; padding: 10px 0; display: flex; align-items: center; gap: 30px; font-family: var(--mono); font-size: 11px; font-weight: 650; letter-spacing: .11em; animation: ticker 35s linear infinite; }
 .ticker i { color: var(--race); font-size: 7px; }
 .home-content { padding: 76px 0 100px; }
