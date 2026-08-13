@@ -13,7 +13,7 @@ import { fetchGithubProfiles, fetchGithubYears, GitHubApiError } from './github'
 import { dateSeries, parseRange } from './ranges';
 import type { ContributionDay, ProfileRecord, ProfileYearRecord, RaceData, RacerSeries, RangeKey } from './types';
 
-const COLORS = ['#159947', '#3979f6', '#f28c28', '#db4f8e', '#7957d5', '#00a4a6'];
+const COLORS = ['#ff5d3a', '#2459e8', '#9a54e8', '#00a58e', '#d49a00', '#df3e8c'];
 const PROFILE_REFRESH_MS = 24 * 60 * 60 * 1000;
 const MANUAL_REFRESH_MS = 3 * 60 * 60 * 1000;
 const RATE_LIMIT_PER_HOUR = 30;

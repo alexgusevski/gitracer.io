@@ -5,6 +5,9 @@ import '../styles/global.css';
 import SponsorRails from '../components/SponsorRails.astro';
 import ThemeToggle from '../components/ThemeToggle.astro';
 
+// Keep the placements ready for launch without showing placeholder inventory.
+const SPONSORS_ENABLED = false;
+
 interface Props {
   title?: string;
   description?: string;
@@ -30,8 +33,8 @@ const {
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#f3f0e7" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0d0f0c" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#eef1f6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#090d16" media="(prefers-color-scheme: dark)" />
     <meta name="robots" content={noindex ? 'noindex, follow' : 'index, follow'} />
     <link rel="canonical" href={canonical} />
     <meta property="og:type" content={pageType} />
@@ -56,7 +59,7 @@ const {
   <body>
     <header class="site-header">
       <div class="site-header__inner">
-        <a class="wordmark" href="/" aria-label="GitRacer home"><span aria-hidden="true">&gt;_</span><b>gitracer</b><i>.io</i></a>
+        <a class="wordmark" href="/" aria-label="GitRacer home"><span aria-hidden="true">R/</span><b>gitracer</b><i>.io</i></a>
         <nav aria-label="Main navigation">
           <a href="/">new race</a>
           <a href="/how-it-works">how it works</a>
@@ -65,11 +68,11 @@ const {
         <ThemeToggle compact />
       </div>
     </header>
-    <SponsorRails />
+    {SPONSORS_ENABLED && <SponsorRails />}
     <main><slot /></main>
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <a class="wordmark wordmark--small" href="/"><span aria-hidden="true">&gt;_</span><b>gitracer</b><i>.io</i></a>
+        <a class="wordmark wordmark--small" href="/"><span aria-hidden="true">R/</span><b>gitracer</b><i>.io</i></a>
         <p>Public GitHub contributions, lined up fairly. Not affiliated with GitHub.</p>
         <nav aria-label="Footer navigation"><a href="/privacy">privacy</a><a href="/how-it-works">methodology</a><a href="/sponsor">sponsor</a><a href="https://github.com/alexgusevski/gitracer.io" rel="noreferrer">source ↗</a></nav>
         <ThemeToggle />

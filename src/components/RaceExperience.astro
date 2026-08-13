@@ -119,15 +119,21 @@ const leaderText = data.racers.length === 1
         const anchor = position === 0 ? 'start' : position === dateIndexes.length - 1 ? 'end' : 'middle';
         return `<text class="chart-axis-label chart-date-label" x="${x}" y="${dims.bottom + 38}" text-anchor="${anchor}">${esc(dateLabel.format(new Date(`${date}T00:00:00Z`)))}</text>`;
       }).join('');
-      const paths = state.racers.map((racer, index) => `<path class="chart-line" data-line="${index}" d="${pathFor(series[index], max, dims)}" style="--line-color:${racer.color}"/><circle class="chart-end" cx="${dims.left + dims.width}" cy="${dims.top + (1 - (series[index].at(-1) || 0) / max) * dims.height}" r="4.5" fill="${racer.color}"/>`).join('');
+      const paths = state.racers.map((racer, index) => `<path class="chart-line" data-line="${index}" pathLength="1" d="${pathFor(series[index], max, dims)}" style="--line-color:${racer.color}"/><circle class="chart-end" cx="${dims.left + dims.width}" cy="${dims.top + (1 - (series[index].at(-1) || 0) / max) * dims.height}" r="4.5" fill="${racer.color}"/>`).join('');
       const legend = state.racers.map((racer, index) => `<g transform="translate(${dims.left + index * 150}, 11)"><circle r="4" fill="${racer.color}"/><text class="chart-legend" x="9" y="4">@${esc(racer.login)}</text></g>`).join('');
       svg.innerHTML = `<title>Cumulative public GitHub contributions from ${esc(state.range.start)} to ${esc(state.range.end)}</title>${grid}${dates}${paths}${legend}<line class="chart-crosshair" data-crosshair y1="${dims.top}" y2="${dims.bottom}" hidden/><rect data-chart-hit x="${dims.left}" y="${dims.top}" width="${dims.width}" height="${dims.height}" fill="transparent"/>`;
       if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
         svg.querySelectorAll('[data-line]').forEach((line) => {
-          const length = line.getTotalLength();
-          line.style.strokeDasharray = String(length);
-          line.style.strokeDashoffset = String(length);
+          // Normalize the dash against the path itself. Pixel dash lengths are
+          // incorrect when a responsive SVG also uses non-scaling strokes.
+          line.style.strokeDasharray = '1';
+          line.style.strokeDashoffset = '1';
+          line.getBoundingClientRect();
           requestAnimationFrame(() => { line.style.strokeDashoffset = '0'; });
+          line.addEventListener('transitionend', () => {
+            line.style.strokeDasharray = 'none';
+            line.style.strokeDashoffset = '0';
+          }, { once: true });
         });
       }
     };
