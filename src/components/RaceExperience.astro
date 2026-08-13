@@ -43,6 +43,7 @@ const leaderText = data.racers.length === 1
   <div class="chart-shell" data-chart-shell aria-label={`Cumulative GitHub contributions for ${data.racers.map((racer) => racer.login).join(', ')}`}>
     <div class="chart-y-label">cumulative contributions</div>
     <svg class="race-chart" data-race-chart viewBox="0 0 1000 440" role="img"></svg>
+    <span class="chart-watermark" aria-hidden="true">gitracer.io</span>
     <div class="chart-tooltip" data-chart-tooltip hidden></div>
     <div class="chart-loading" data-chart-loading hidden><span></span> fetching public contributions…</div>
   </div>

@@ -161,6 +161,7 @@ img { display: block; max-width: 100%; }
 .chart-shell::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .22; background-image: linear-gradient(to right, var(--line) 1px, transparent 1px), linear-gradient(to bottom, var(--line) 1px, transparent 1px); background-size: 48px 48px; mask-image: linear-gradient(to bottom, black, transparent 92%); }
 .chart-y-label { position: absolute; top: 50%; left: 12px; z-index: 2; color: var(--muted); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; transform: rotate(-90deg) translateX(-50%); transform-origin: 0 0; }
 .race-chart { position: relative; z-index: 1; display: block; width: 100%; height: auto; min-height: 440px; overflow: visible; touch-action: pan-y; }
+.chart-watermark { position: absolute; z-index: 2; top: 13px; right: 18px; color: var(--muted); font-family: var(--mono); font-size: 10px; font-weight: 650; letter-spacing: .04em; opacity: .62; pointer-events: none; }
 .chart-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 5; }
 .chart-axis-label, .chart-legend { fill: var(--muted); font: 10px var(--mono); }
 .chart-legend { fill: var(--ink); font-weight: 600; }
