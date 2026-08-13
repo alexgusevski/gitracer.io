@@ -1,18 +1,18 @@
 :root {
   color-scheme: light;
   --paper: #ffffff;
-  --paper-2: #f6f7fb;
+  --paper-2: #f6f8fa;
   --panel: #ffffff;
-  --ink: #16163a;
-  --muted: #555670;
-  --line: #d9d9e7;
-  --line-strong: #9a9bbd;
+  --ink: #1f2328;
+  --muted: #59636e;
+  --line: #d1d9e0;
+  --line-strong: #8c959f;
   --green: #5146b8;
   --green-bright: #6558d3;
   --green-soft: #eeecff;
   --race: #5146b8;
   --race-soft: #eeecff;
-  --shadow: 0 8px 24px rgba(22, 22, 58, .09);
+  --shadow: 0 8px 24px rgba(31, 35, 40, .08);
   --display: 'Mona Sans Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --sans: 'Mona Sans Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono Variable', ui-monospace, monospace;
@@ -20,37 +20,37 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --paper: #08082f;
-  --paper-2: #050522;
-  --panel: #12123d;
+  --paper: #0b0d12;
+  --paper-2: #050608;
+  --panel: #151820;
   --ink: #ffffff;
-  --muted: #d6d6e7;
-  --line: #303166;
-  --line-strong: #66679a;
+  --muted: #c9d1d9;
+  --line: #30343d;
+  --line-strong: #6e7681;
   --green: #9784ff;
   --green-bright: #ad9eff;
-  --green-soft: #24245b;
+  --green-soft: #211d38;
   --race: #9784ff;
-  --race-soft: #24245b;
-  --shadow: 0 12px 32px rgba(0, 0, 24, .4);
+  --race-soft: #211d38;
+  --shadow: 0 12px 30px rgba(0, 0, 0, .32);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --paper: #08082f;
-    --paper-2: #050522;
-    --panel: #12123d;
+    --paper: #0b0d12;
+    --paper-2: #050608;
+    --panel: #151820;
     --ink: #ffffff;
-    --muted: #d6d6e7;
-    --line: #303166;
-    --line-strong: #66679a;
+    --muted: #c9d1d9;
+    --line: #30343d;
+    --line-strong: #6e7681;
     --green: #9784ff;
     --green-bright: #ad9eff;
-    --green-soft: #24245b;
+    --green-soft: #211d38;
     --race: #9784ff;
-    --race-soft: #24245b;
-    --shadow: 0 12px 32px rgba(0, 0, 24, .4);
+    --race-soft: #211d38;
+    --shadow: 0 12px 30px rgba(0, 0, 0, .32);
   }
 }
 
@@ -119,7 +119,7 @@ img { display: block; max-width: 100%; }
 .hero__proof b { color: var(--green); }
 .hero__proof i { color: var(--line-strong); font-style: normal; }
 
-.ticker { overflow: hidden; border-top: 3px solid var(--race); border-bottom: 1px solid #08082f; background: #08082f; color: #fff; white-space: nowrap; }
+.ticker { overflow: hidden; border-top: 3px solid var(--race); border-bottom: 1px solid #151820; background: #0b0d12; color: #fff; white-space: nowrap; }
 .ticker > div { width: max-content; padding: 10px 0; display: flex; align-items: center; gap: 30px; font-family: var(--mono); font-size: 11px; font-weight: 650; letter-spacing: .11em; animation: ticker 35s linear infinite; }
 .ticker i { color: var(--race); font-size: 7px; }
 .home-content { padding: 76px 0 100px; }

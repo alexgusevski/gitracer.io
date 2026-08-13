@@ -55,20 +55,20 @@ export const GET: APIRoute = async ({ params, request, url, locals }) => {
     : 'Race your GitHub contribution history.';
 
   const chart = data
-    ? `<div style="position:relative;display:flex;flex:1;margin-top:34px;border-top:1px solid #303166">
+    ? `<div style="position:relative;display:flex;flex:1;margin-top:34px;border-top:1px solid #30343d">
         <svg width="900" height="260" viewBox="0 0 900 260" style="position:absolute;left:0;bottom:0">
-          ${[0, 1, 2, 3].map((line) => `<line x1="0" x2="880" y1="${30 + line * 70}" y2="${30 + line * 70}" stroke="#303166" stroke-dasharray="4 6"/>`).join('')}
+          ${[0, 1, 2, 3].map((line) => `<line x1="0" x2="880" y1="${30 + line * 70}" y2="${30 + line * 70}" stroke="#30343d" stroke-dasharray="4 6"/>`).join('')}
           ${data.racers.map((racer, index) => `<path d="${cumulativePath(data, index)}" transform="translate(0 10)" fill="none" stroke="${racer.color || colors[index]}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}
         </svg>
         <div style="position:absolute;right:0;bottom:18px;display:flex;flex-direction:column;align-items:flex-end">
           ${data.racers.map((racer) => `<div style="display:flex;align-items:center;margin-top:8px;font-size:17px"><span style="width:10px;height:10px;margin-right:9px;border-radius:99px;background:${racer.color}"></span>@${escapeHtml(racer.login)}<b style="margin-left:12px">${racer.total.toLocaleString()}</b></div>`).join('')}
         </div>
       </div>`
-    : '<div style="display:flex;align-items:center;flex:1;margin-top:48px;border-top:1px solid #303166;color:#d6d6e7;font-size:24px">type handles → pick a period → share the race</div>';
-  const html = `<div style="width:100%;height:100%;display:flex;flex-direction:column;padding:62px 70px;border-top:10px solid #9784ff;background:#08082f;color:#ffffff;font-family:sans-serif">
+    : '<div style="display:flex;align-items:center;flex:1;margin-top:48px;border-top:1px solid #30343d;color:#c9d1d9;font-size:24px">type handles → pick a period → share the race</div>';
+  const html = `<div style="width:100%;height:100%;display:flex;flex-direction:column;padding:62px 70px;border-top:8px solid #9784ff;background:#0b0d12;color:#ffffff;font-family:sans-serif">
     <div style="display:flex;align-items:center;justify-content:space-between">
-      <div style="display:flex;align-items:center;font-size:26px;font-weight:700"><span style="display:flex;align-items:center;justify-content:center;width:52px;height:44px;margin-right:14px;border:1px solid #3d3e7a;border-radius:10px;background:#050522;color:#fff;font-family:monospace;font-size:18px"><span style="color:#fff">&gt;</span><span style="color:#9784ff">_</span></span>gitracer<span style="color:#9784ff">.io</span></div>
-      <div style="display:flex;align-items:center;padding:8px 14px;border:1px solid #66679a;border-radius:8px;color:#d6d6e7;font-size:15px"><span style="color:#9784ff;margin-right:8px">●</span> public GitHub data</div>
+      <div style="display:flex;align-items:center;font-size:26px;font-weight:700"><span style="display:flex;align-items:center;justify-content:center;width:52px;height:44px;margin-right:14px;border:1px solid #30343d;border-radius:10px;background:#050608;color:#fff;font-family:monospace;font-size:18px"><span style="color:#fff">&gt;</span><span style="color:#9784ff">_</span></span>gitracer<span style="color:#9784ff">.io</span></div>
+      <div style="display:flex;align-items:center;padding:8px 14px;border:1px solid #6e7681;border-radius:8px;color:#c9d1d9;font-size:15px"><span style="color:#9784ff;margin-right:8px">●</span> public GitHub data</div>
     </div>
     <div style="display:flex;flex-direction:column;margin-top:42px">
       <div style="display:flex;color:#9784ff;font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase">${escapeHtml(data ? `${data.range.label} · race in progress` : 'up to 6 racers · one shareable graph')}</div>
