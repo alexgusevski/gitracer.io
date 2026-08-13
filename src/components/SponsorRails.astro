@@ -1,0 +1,33 @@
+---
+const cards = [
+  { tone: 'mint', mark: '↗', name: 'Your dev tool', copy: 'Reach builders while they compare their GitHub streaks.' },
+  { tone: 'blue', mark: '⌘', name: 'Sponsor GitRacer', copy: 'Clean, fixed placements. No behavioral ad network.' },
+  { tone: 'pink', mark: '◇', name: 'This spot is open', copy: 'Launch offer for developer-first companies.' },
+];
+---
+
+<aside class="sponsor-rail sponsor-rail--left" aria-label="Sponsors">
+  {cards.map((card, index) => (
+    <a class={`sponsor-card sponsor-card--${card.tone}`} href="/sponsor" data-track="sponsor_click" data-sponsor-position={`left_${index + 1}`}>
+      <span class="sponsor-mark" aria-hidden="true">{card.mark}</span>
+      <strong>{card.name}</strong>
+      <span>{card.copy}</span>
+      <small>sponsor</small>
+    </a>
+  ))}
+</aside>
+
+<aside class="sponsor-rail sponsor-rail--right" aria-label="Sponsors">
+  {[...cards].reverse().map((card, index) => (
+    <a class={`sponsor-card sponsor-card--${card.tone}`} href="/sponsor" data-track="sponsor_click" data-sponsor-position={`right_${index + 1}`}>
+      <span class="sponsor-mark" aria-hidden="true">{card.mark}</span>
+      <strong>{card.name}</strong>
+      <span>{card.copy}</span>
+      <small>sponsor</small>
+    </a>
+  ))}
+</aside>
+
+<a class="mobile-sponsor" href="/sponsor" data-track="sponsor_click" data-sponsor-position="mobile_banner">
+  <span><b>your dev tool here</b> — sponsor GitRacer</span><span>advertise ↗</span>
+</a>

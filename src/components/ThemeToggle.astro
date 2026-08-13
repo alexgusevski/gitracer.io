@@ -1,0 +1,9 @@
+---
+interface Props { compact?: boolean }
+const { compact = false } = Astro.props;
+---
+
+<button class:list={['theme-toggle', { compact }]} type="button" data-theme-toggle aria-label="Theme: system" title="Theme: system">
+  <span data-theme-icon aria-hidden="true">◐</span>
+  {!compact && <span data-theme-label>system</span>}
+</button>

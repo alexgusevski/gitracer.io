@@ -1,0 +1,44 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "gitracer",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2026-08-13",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "SESSION",
+      "id": "36342ece8eec4c58aa45f2d70ef9a502"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "gitracer-db",
+      "database_id": "e548fd26-04af-4610-8635-8cda1595ba6f",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "AVATARS",
+      "bucket_name": "gitracer-avatars"
+    }
+  ],
+  "vars": {
+    "POSTHOG_UI_HOST": "https://eu.posthog.com",
+    "POSTHOG_INGEST_HOST": "https://eu.i.posthog.com",
+    "POSTHOG_ASSETS_HOST": "https://eu-assets.i.posthog.com"
+  },
+  "secrets": {
+    "required": ["GITHUB_TOKEN", "RATE_LIMIT_SECRET"]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": { "invocation_logs": true }
+  }
+}

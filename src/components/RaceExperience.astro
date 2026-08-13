@@ -1,0 +1,223 @@
+---
+import type { RaceData } from '../lib/types';
+
+interface Props { data: RaceData }
+const { data } = Astro.props;
+const currentYear = new Date().getUTCFullYear();
+const fetchedTimes = data.racers.map((racer) => racer.fetchedAt).filter((value): value is string => Boolean(value));
+const fetchedAt = fetchedTimes.sort()[0] ?? data.generatedAt;
+const safeJson = JSON.stringify(data).replace(/</g, '\\u003c');
+const leaderText = data.racers.length === 1
+  ? `@${data.racers[0]?.login} made ${data.racers[0]?.total.toLocaleString()} contributions.`
+  : data.leader?.tied
+    ? `It's a tie at ${data.racers.find((racer) => racer.login === data.leader?.login)?.total.toLocaleString()} contributions.`
+    : `@${data.leader?.login} is leading by ${data.leader?.lead.toLocaleString()} contributions.`;
+---
+
+<section class="race-experience" data-race-experience data-slug={data.slug}>
+  <div class="race-titlebar">
+    <div>
+      <span class="eyebrow"><i class="live-pip"></i> race in progress</span>
+      <h1 data-leader-copy>{leaderText}</h1>
+      <p>Every racer starts at zero on <span data-range-start>{data.range.start}</span>. All public GitHub contribution types count.</p>
+    </div>
+    <div class="race-actions">
+      <button class="button button--quiet" type="button" data-share-race><span aria-hidden="true">↗</span> share race</button>
+      <button class="button button--quiet" type="button" data-refresh-race hidden={!data.canRefresh}><span aria-hidden="true">↻</span> refresh</button>
+    </div>
+  </div>
+
+  <div class="race-toolbar">
+    <label>
+      <span>period</span>
+      <select data-range-select aria-label="Race period">
+        <option value="last30" selected={data.range.key === 'last30'}>last 30 days</option>
+        <option value="last365" selected={data.range.key === 'last365'}>last 365 days</option>
+        {data.availableYears.map((year) => <option value={`year:${year}`} selected={data.range.key === `year:${year}`}>{year === currentYear ? `${year} · this year` : year}</option>)}
+        <option value="lifetime" selected={data.range.key === 'lifetime'}>lifetime</option>
+      </select>
+    </label>
+    <div class="race-freshness"><span class="cache-light"></span><span>data fetched <time datetime={fetchedAt} data-fetched-time>{fetchedAt}</time></span></div>
+  </div>
+
+  <div class="chart-shell" data-chart-shell aria-label={`Cumulative GitHub contributions for ${data.racers.map((racer) => racer.login).join(', ')}`}>
+    <div class="chart-y-label">cumulative contributions</div>
+    <svg class="race-chart" data-race-chart viewBox="0 0 1000 440" role="img"></svg>
+    <div class="chart-tooltip" data-chart-tooltip hidden></div>
+    <div class="chart-loading" data-chart-loading hidden><span></span> fetching public contributions…</div>
+  </div>
+  <p class="chart-error" data-chart-error role="alert"></p>
+
+  <div class="racer-grid" data-racer-grid>
+    {data.racers.map((racer, index) => (
+      <article class="racer-card" style={`--racer-color:${racer.color}`} data-racer-index={index}>
+        <a class="racer-card__person" href={`/${racer.login}`} data-track="profile_opened" data-profile-handle={racer.login}>
+          <img src={racer.avatarUrl} alt={`${racer.login}'s GitHub avatar`} width="56" height="56" />
+          <span><strong>{racer.displayName || racer.login}</strong><small>@{racer.login} ↗</small></span>
+        </a>
+        <div class="racer-card__stats">
+          <span><b data-stat="total">{racer.total.toLocaleString()}</b><small>contributions</small></span>
+          <span><b data-stat="activeDays">{racer.activeDays.toLocaleString()}</b><small>active days</small></span>
+          <span><b data-stat="longestStreak">{racer.longestStreak.toLocaleString()}</b><small>best streak</small></span>
+        </div>
+      </article>
+    ))}
+  </div>
+  <div class="race-note"><span aria-hidden="true">i</span><p>GitHub’s graph combines commits, pull requests, issues, and reviews that GitHub counts as contributions. Private activity only appears if the profile owner chose to expose anonymized private contribution counts.</p></div>
+  <script is:inline type="application/json" data-race-data set:html={safeJson}></script>
+</section>
+
+<script>
+  // @ts-nocheck -- this is a progressively enhanced SVG renderer over server-validated race JSON.
+  const compactNumber = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+  const exactNumber = new Intl.NumberFormat('en');
+  const dateLabel = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+
+  document.querySelectorAll('[data-race-experience]').forEach((root) => {
+    if (!(root instanceof HTMLElement) || root.dataset.ready === 'true') return;
+    root.dataset.ready = 'true';
+    const json = root.querySelector('[data-race-data]');
+    const svg = root.querySelector('[data-race-chart]');
+    const shell = root.querySelector('[data-chart-shell]');
+    const tooltip = root.querySelector('[data-chart-tooltip]');
+    const select = root.querySelector('[data-range-select]');
+    const loading = root.querySelector('[data-chart-loading]');
+    const errorBox = root.querySelector('[data-chart-error]');
+    let state = JSON.parse(json?.textContent || '{}');
+    if (!(svg instanceof SVGElement) || !(shell instanceof HTMLElement) || !(tooltip instanceof HTMLElement)) return;
+
+    const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+    const cumulative = (days) => {
+      let total = 0;
+      return days.map((day) => (total += day.count));
+    };
+    const pathFor = (values, max, dims) => {
+      const points = [`${dims.left},${dims.bottom}`];
+      values.forEach((value, index) => {
+        const x = dims.left + ((index + 1) / Math.max(1, values.length)) * dims.width;
+        const y = dims.top + (1 - value / max) * dims.height;
+        points.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+      });
+      return `M${points.join(' L')}`;
+    };
+    const renderChart = () => {
+      const dims = { left: 76, right: 24, top: 24, bottom: 384, width: 900, height: 360 };
+      const series = state.racers.map((racer) => cumulative(racer.days));
+      const rawMax = Math.max(1, ...series.flat());
+      const magnitude = 10 ** Math.floor(Math.log10(rawMax));
+      const step = Math.max(1, Math.ceil(rawMax / magnitude / 4) * magnitude);
+      const max = step * 4;
+      const grid = Array.from({ length: 5 }, (_, index) => {
+        const value = step * (4 - index);
+        const y = dims.top + (index / 4) * dims.height;
+        return `<g><line class="chart-grid" x1="${dims.left}" x2="${dims.left + dims.width}" y1="${y}" y2="${y}"/><text class="chart-axis-label" x="${dims.left - 14}" y="${y + 4}" text-anchor="end">${compactNumber.format(value)}</text></g>`;
+      }).join('');
+      const dateIndexes = [...new Set([0, .25, .5, .75, 1].map((part) => Math.max(0, Math.min(state.racers[0].days.length - 1, Math.round((state.racers[0].days.length - 1) * part)))))];
+      const dates = dateIndexes.map((index, position) => {
+        const x = dims.left + ((index + 1) / Math.max(1, state.racers[0].days.length)) * dims.width;
+        const date = state.racers[0].days[index]?.date ?? state.range.start;
+        const anchor = position === 0 ? 'start' : position === dateIndexes.length - 1 ? 'end' : 'middle';
+        return `<text class="chart-axis-label chart-date-label" x="${x}" y="${dims.bottom + 38}" text-anchor="${anchor}">${esc(dateLabel.format(new Date(`${date}T00:00:00Z`)))}</text>`;
+      }).join('');
+      const paths = state.racers.map((racer, index) => `<path class="chart-line" data-line="${index}" d="${pathFor(series[index], max, dims)}" style="--line-color:${racer.color}"/><circle class="chart-end" cx="${dims.left + dims.width}" cy="${dims.top + (1 - (series[index].at(-1) || 0) / max) * dims.height}" r="4.5" fill="${racer.color}"/>`).join('');
+      const legend = state.racers.map((racer, index) => `<g transform="translate(${dims.left + index * 150}, 11)"><circle r="4" fill="${racer.color}"/><text class="chart-legend" x="9" y="4">@${esc(racer.login)}</text></g>`).join('');
+      svg.innerHTML = `<title>Cumulative public GitHub contributions from ${esc(state.range.start)} to ${esc(state.range.end)}</title>${grid}${dates}${paths}${legend}<line class="chart-crosshair" data-crosshair y1="${dims.top}" y2="${dims.bottom}" hidden/><rect data-chart-hit x="${dims.left}" y="${dims.top}" width="${dims.width}" height="${dims.height}" fill="transparent"/>`;
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        svg.querySelectorAll('[data-line]').forEach((line) => {
+          const length = line.getTotalLength();
+          line.style.strokeDasharray = String(length);
+          line.style.strokeDashoffset = String(length);
+          requestAnimationFrame(() => { line.style.strokeDashoffset = '0'; });
+        });
+      }
+    };
+    const updateCopy = () => {
+      const first = [...state.racers].sort((a, b) => b.total - a.total)[0];
+      const second = [...state.racers].sort((a, b) => b.total - a.total)[1];
+      let copy = `@${first.login} made ${exactNumber.format(first.total)} contributions.`;
+      if (second) copy = first.total === second.total ? `It's a tie at ${exactNumber.format(first.total)} contributions.` : `@${first.login} is leading by ${exactNumber.format(first.total - second.total)} contributions.`;
+      const leader = root.querySelector('[data-leader-copy]');
+      const start = root.querySelector('[data-range-start]');
+      if (leader) leader.textContent = copy;
+      if (start) start.textContent = state.range.start;
+      root.querySelectorAll('[data-racer-index]').forEach((card) => {
+        const racer = state.racers[Number(card.getAttribute('data-racer-index'))];
+        if (!racer) return;
+        ['total', 'activeDays', 'longestStreak'].forEach((key) => {
+          const node = card.querySelector(`[data-stat="${key}"]`);
+          if (node) node.textContent = exactNumber.format(racer[key]);
+        });
+      });
+      const refresh = root.querySelector('[data-refresh-race]');
+      if (refresh instanceof HTMLButtonElement) refresh.hidden = !state.canRefresh;
+      const times = state.racers.map((racer) => racer.fetchedAt).filter(Boolean).sort();
+      const time = root.querySelector('[data-fetched-time]');
+      if (time instanceof HTMLTimeElement) {
+        time.dateTime = times[0] || state.generatedAt;
+        time.dataset.iso = time.dateTime;
+      }
+      renderTimes();
+    };
+    const renderTimes = () => root.querySelectorAll('[data-fetched-time]').forEach((time) => {
+      const iso = time.getAttribute('datetime');
+      if (!iso) return;
+      const seconds = Math.max(1, Math.floor((Date.now() - Date.parse(iso)) / 1000));
+      time.textContent = seconds < 60 ? `${seconds}s ago` : seconds < 3600 ? `${Math.floor(seconds / 60)}m ago` : seconds < 86400 ? `${Math.floor(seconds / 3600)}h ago` : `${Math.floor(seconds / 86400)}d ago`;
+    });
+    const showLoading = (active) => {
+      if (loading instanceof HTMLElement) loading.hidden = !active;
+      if (select instanceof HTMLSelectElement) select.disabled = active;
+      if (errorBox) errorBox.textContent = '';
+    };
+    const fetchRace = async (range, refresh = false) => {
+      showLoading(true);
+      try {
+        const path = refresh ? `/api/refresh/${root.dataset.slug}` : `/api/race/${root.dataset.slug}.json`;
+        const response = await fetch(`${path}?range=${encodeURIComponent(range)}`, { method: refresh ? 'POST' : 'GET', headers: { Accept: 'application/json' } });
+        const next = await response.json();
+        if (!response.ok) throw new Error(next.error || 'Could not load this race.');
+        state = next;
+        renderChart();
+        updateCopy();
+        history.replaceState(null, '', `${location.pathname}?range=${encodeURIComponent(range)}`);
+        window.posthog?.capture?.(refresh ? 'race_refreshed' : 'race_range_changed', { range, racer_count: state.racers.length });
+      } catch (error) {
+        if (errorBox) errorBox.textContent = error instanceof Error ? error.message : 'Could not load this race.';
+      } finally { showLoading(false); }
+    };
+
+    svg.addEventListener('pointermove', (event) => {
+      const rect = svg.getBoundingClientRect();
+      const xSvg = ((event.clientX - rect.left) / rect.width) * 1000;
+      const ratio = Math.max(0, Math.min(1, (xSvg - 76) / 900));
+      const count = state.racers[0].days.length;
+      const index = Math.max(0, Math.min(count - 1, Math.floor(ratio * count)));
+      const x = 76 + ((index + 1) / Math.max(1, count)) * 900;
+      const crosshair = svg.querySelector('[data-crosshair]');
+      if (crosshair) { crosshair.removeAttribute('hidden'); crosshair.setAttribute('x1', String(x)); crosshair.setAttribute('x2', String(x)); }
+      const date = state.racers[0].days[index].date;
+      tooltip.innerHTML = `<b>${esc(dateLabel.format(new Date(`${date}T00:00:00Z`)))}</b>${state.racers.map((racer) => { const total = racer.days.slice(0, index + 1).reduce((sum, day) => sum + day.count, 0); return `<span><i style="background:${racer.color}"></i>@${esc(racer.login)} <strong>${exactNumber.format(total)}</strong><small>+${exactNumber.format(racer.days[index].count)}</small></span>`; }).join('')}`;
+      tooltip.hidden = false;
+      const localX = (x / 1000) * rect.width;
+      tooltip.style.left = `${Math.max(12, Math.min(rect.width - tooltip.offsetWidth - 12, localX + 12))}px`;
+      tooltip.style.top = `${Math.max(12, ((event.clientY - rect.top) / rect.height) * shell.clientHeight - tooltip.offsetHeight - 12)}px`;
+    });
+    svg.addEventListener('pointerleave', () => {
+      tooltip.hidden = true;
+      svg.querySelector('[data-crosshair]')?.setAttribute('hidden', '');
+    });
+    if (select instanceof HTMLSelectElement) select.addEventListener('change', () => fetchRace(select.value));
+    root.querySelector('[data-refresh-race]')?.addEventListener('click', () => fetchRace(state.range.key, true));
+    root.querySelector('[data-share-race]')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      try {
+        if (navigator.share) await navigator.share({ title: document.title, text: root.querySelector('[data-leader-copy]')?.textContent || '', url: location.href });
+        else { await navigator.clipboard.writeText(location.href); if (button instanceof HTMLElement) button.textContent = '✓ link copied'; }
+        window.posthog?.capture?.('race_shared', { racer_count: state.racers.length, range: state.range.key });
+      } catch {}
+    });
+    renderChart();
+    updateCopy();
+    setInterval(renderTimes, 60_000);
+  });
+</script>

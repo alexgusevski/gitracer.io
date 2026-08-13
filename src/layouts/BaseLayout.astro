@@ -1,0 +1,112 @@
+---
+import '@fontsource-variable/jetbrains-mono';
+import '@fontsource-variable/space-grotesk';
+import '../styles/global.css';
+import SponsorRails from '../components/SponsorRails.astro';
+import ThemeToggle from '../components/ThemeToggle.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+  canonical?: string;
+  image?: string;
+  noindex?: boolean;
+  pageType?: 'website' | 'profile';
+}
+const {
+  title = 'GitRacer — Race GitHub contribution graphs',
+  description = 'Put up to six public GitHub profiles on one contribution race. Filter by year, last 30 days, last 365 days, or lifetime, then share the result.',
+  canonical = new URL(Astro.url.pathname, Astro.site).toString(),
+  image = new URL('/og/default.png', Astro.site).toString(),
+  noindex = false,
+  pageType = 'website',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#f3f0e7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d0f0c" media="(prefers-color-scheme: dark)" />
+    <meta name="robots" content={noindex ? 'noindex, follow' : 'index, follow'} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:type" content={pageType} />
+    <meta property="og:site_name" content="GitRacer" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={image} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={image} />
+    <title>{title}</title>
+    <script is:inline>
+      (() => {
+        const saved = localStorage.getItem('gitracer-theme');
+        if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved;
+      })();
+    </script>
+    <slot name="head" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="wordmark" href="/" aria-label="GitRacer home"><span aria-hidden="true">&gt;_</span><b>gitracer</b><i>.io</i></a>
+        <nav aria-label="Main navigation">
+          <a href="/">new race</a>
+          <a href="/how-it-works">how it works</a>
+          <a href="/sponsor">sponsor</a>
+        </nav>
+        <ThemeToggle compact />
+      </div>
+    </header>
+    <SponsorRails />
+    <main><slot /></main>
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <a class="wordmark wordmark--small" href="/"><span aria-hidden="true">&gt;_</span><b>gitracer</b><i>.io</i></a>
+        <p>Public GitHub contributions, lined up fairly. Not affiliated with GitHub.</p>
+        <nav aria-label="Footer navigation"><a href="/privacy">privacy</a><a href="/how-it-works">methodology</a><a href="/sponsor">sponsor</a><a href="https://github.com/alexgusevski/gitracer.io" rel="noreferrer">source ↗</a></nav>
+        <ThemeToggle />
+      </div>
+    </footer>
+    <script is:inline src="/analytics.js" defer></script>
+    <script>
+      type ThemeMode = 'system' | 'light' | 'dark';
+      const modes: ThemeMode[] = ['system', 'light', 'dark'];
+      const icons: Record<ThemeMode, string> = { system: '◐', light: '☀', dark: '☾' };
+      const currentMode = (): ThemeMode => {
+        const saved = localStorage.getItem('gitracer-theme');
+        return saved === 'light' || saved === 'dark' ? saved : 'system';
+      };
+      const paintThemeButtons = () => {
+        const mode = currentMode();
+        document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
+          button.setAttribute('aria-label', `Theme: ${mode}`);
+          button.setAttribute('title', `Theme: ${mode}`);
+          const icon = button.querySelector('[data-theme-icon]');
+          const label = button.querySelector('[data-theme-label]');
+          if (icon) icon.textContent = icons[mode];
+          if (label) label.textContent = mode;
+        });
+      };
+      document.querySelectorAll('[data-theme-toggle]').forEach((button) => button.addEventListener('click', () => {
+        const next = modes[(modes.indexOf(currentMode()) + 1) % modes.length] ?? 'system';
+        if (next === 'system') {
+          localStorage.removeItem('gitracer-theme');
+          delete document.documentElement.dataset.theme;
+        } else {
+          localStorage.setItem('gitracer-theme', next);
+          document.documentElement.dataset.theme = next;
+        }
+        paintThemeButtons();
+      }));
+      paintThemeButtons();
+    </script>
+  </body>
+</html>

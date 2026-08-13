@@ -1,0 +1,23 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="GitRacer privacy — cookieless by design" description="What GitRacer stores, how cookieless analytics work, and why the site does not need an analytics cookie banner.">
+  <article class="content-page">
+    <span class="eyebrow">privacy.txt</span>
+    <h1>Useful stats without an analytics identity.</h1>
+    <p class="lede">GitRacer does not set analytics cookies, does not use session replay, and does not build person profiles. We use cookieless PostHog only after its privacy-safe server hash mode is enabled.</p>
+    <div class="callout">Your theme choice is stored locally in your browser. It is a functional preference, not an advertising or analytics identifier.</div>
+    <h2>Public GitHub data</h2>
+    <p>When someone opens a race URL, we store the public GitHub handle, display name, profile URL, avatar source, contribution years, and public daily contribution totals. Race URLs and their handles are public by design. Avatars are cached in our own object storage.</p>
+    <h2>Traffic analytics</h2>
+    <p>PostHog records page views, page exits, web-vital performance, race creation, period changes, refreshes, shares, and sponsor impressions or clicks. Autocapture, recordings, heatmaps, form capture, cross-site advertising, and identified person profiles are disabled.</p>
+    <p>Requests go through <code>gitracer.io/ph</code> to PostHog’s EU region. Cookieless mode uses a rotating server-side hash to estimate anonymous visitors without writing an identifier to cookies, local storage, or session storage. This is strong for aggregate daily visitors and time-on-page, but intentionally weaker for cross-day retention and long user journeys.</p>
+    <h2>Abuse protection</h2>
+    <p>To protect the GitHub quota, the connecting IP is combined with a secret and hourly bucket, then hashed. Only that short-lived hash and a counter are stored; the raw IP is not stored in GitRacer’s database. Expired buckets are deleted opportunistically.</p>
+    <h2>Your browser signals</h2>
+    <p>If your browser sends Do Not Track or Global Privacy Control, the analytics script does not initialize. Core race functionality remains available.</p>
+    <h2>Legal note</h2>
+    <p>This page describes the implemented technical behavior, not legal advice. Before selling sponsorships, the operator should add business identity and contact details and review the final policy for the countries being served.</p>
+  </article>
+</BaseLayout>

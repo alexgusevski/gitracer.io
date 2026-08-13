@@ -1,0 +1,37 @@
+{
+  "name": "gitracer.io",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro check && astro build",
+    "preview": "astro build && astro preview",
+    "check": "astro check && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "deploy": "npm run build && wrangler deploy",
+    "generate-types": "wrangler types",
+    "db:migrate:local": "wrangler d1 migrations apply gitracer-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply gitracer-db --remote"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^14.2.1",
+    "@cf-wasm/og": "^0.4.1",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@fontsource-variable/space-grotesk": "^5.2.8",
+    "astro": "^7.2.1",
+    "react": "^19.2.4"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.6",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.14",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18",
+    "wrangler": "^4.72.0"
+  }
+}

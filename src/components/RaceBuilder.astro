@@ -1,0 +1,124 @@
+---
+interface Props {
+  initialHandles?: string[];
+  compact?: boolean;
+  heading?: string;
+}
+const { initialHandles = [], compact = false, heading } = Astro.props;
+---
+
+<section class:list={['race-builder', { 'race-builder--compact': compact }]} data-race-builder>
+  {heading && <h2>{heading}</h2>}
+  <form class="race-builder__form" novalidate>
+    <div class="race-builder__input-wrap" data-chip-list>
+      {initialHandles.map((handle) => (
+        <span class="handle-chip" data-handle={handle}>
+          <span>@{handle}</span>
+          <button type="button" aria-label={`Remove ${handle}`} data-remove-handle>×</button>
+        </span>
+      ))}
+      <span class="prompt-mark" aria-hidden="true">&gt;</span>
+      <input
+        data-handle-input
+        aria-label="GitHub username"
+        autocomplete="off"
+        autocapitalize="none"
+        spellcheck="false"
+        enterkeyhint="done"
+        maxlength="40"
+        placeholder={initialHandles.length ? 'add another handle' : 'type a GitHub handle, then press enter'}
+      />
+      <span class="terminal-cursor" aria-hidden="true"></span>
+    </div>
+    <button class="button button--primary race-builder__submit" type="submit" disabled={initialHandles.length === 0}>
+      create race <span aria-hidden="true">→</span>
+    </button>
+  </form>
+  <div class="race-builder__foot">
+    <p data-builder-help>{initialHandles.length}/6 racers · enter to add · no sign-up</p>
+    <p class="form-error" data-builder-error role="alert"></p>
+  </div>
+</section>
+
+<script>
+  const HANDLE_PATTERN = /^(?!-)(?!.*--)[A-Za-z0-9-]{1,39}(?<!-)$/;
+
+  document.querySelectorAll('[data-race-builder]').forEach((root) => {
+    if (!(root instanceof HTMLElement) || root.dataset.ready === 'true') return;
+    root.dataset.ready = 'true';
+    const form = root.querySelector('form');
+    const list = root.querySelector('[data-chip-list]');
+    const input = root.querySelector('[data-handle-input]');
+    const submit = root.querySelector('[type="submit"]');
+    const help = root.querySelector('[data-builder-help]');
+    const error = root.querySelector('[data-builder-error]');
+    if (!(form instanceof HTMLFormElement) || !(list instanceof HTMLElement) || !(input instanceof HTMLInputElement) || !(submit instanceof HTMLButtonElement)) return;
+
+    const handles = () => [...list.querySelectorAll('[data-handle]')].map((chip) => chip.getAttribute('data-handle')).filter(Boolean);
+    const showError = (message = '') => { if (error) error.textContent = message; };
+    const update = () => {
+      const count = handles().length;
+      submit.disabled = count === 0;
+      if (help) help.textContent = `${count}/6 racers · enter to add · no sign-up`;
+      input.placeholder = count ? 'add another handle' : 'type a GitHub handle, then press enter';
+    };
+    const add = (raw: string) => {
+      const handle = raw.trim().replace(/^@/, '').toLowerCase();
+      if (!handle) return;
+      if (!HANDLE_PATTERN.test(handle)) return showError('That does not look like a GitHub username.');
+      if (handles().includes(handle)) return showError(`@${handle} is already in this race.`);
+      if (handles().length >= 6) return showError('A race can have at most 6 people.');
+      const chip = document.createElement('span');
+      chip.className = 'handle-chip';
+      chip.dataset.handle = handle;
+      const name = document.createElement('span');
+      name.textContent = `@${handle}`;
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.setAttribute('aria-label', `Remove ${handle}`);
+      remove.dataset.removeHandle = '';
+      remove.textContent = '×';
+      chip.appendChild(name);
+      chip.appendChild(remove);
+      list.insertBefore(chip, list.querySelector('.prompt-mark'));
+      input.value = '';
+      showError();
+      update();
+    };
+
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ',') {
+        event.preventDefault();
+        add(input.value);
+      } else if (event.key === 'Backspace' && !input.value) {
+        const chips = list.querySelectorAll('[data-handle]');
+        chips[chips.length - 1]?.remove();
+        update();
+      }
+    });
+    input.addEventListener('paste', (event) => {
+      const value = event.clipboardData?.getData('text') ?? '';
+      if (!/[,+\s]/.test(value)) return;
+      event.preventDefault();
+      value.split(/[,+\s]+/).forEach(add);
+    });
+    list.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return input.focus();
+      const remove = target.closest('[data-remove-handle]');
+      if (remove) {
+        remove.closest('[data-handle]')?.remove();
+        update();
+      } else input.focus();
+    });
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (input.value.trim()) add(input.value);
+      const racers = handles();
+      if (!racers.length) return showError('Add at least one GitHub username.');
+      window.posthog?.capture?.('race_created', { racer_count: racers.length });
+      window.location.href = `/${racers.join('+')}`;
+    });
+    update();
+  });
+</script>

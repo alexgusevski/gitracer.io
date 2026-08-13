@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /ph/
+Sitemap: https://gitracer.io/sitemap.xml
