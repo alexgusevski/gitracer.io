@@ -1,12 +1,13 @@
 # GitRacer
 
-GitRacer puts one to six public GitHub contribution histories on a cumulative, shareable race graph.
+GitRacer puts one to twelve public GitHub contribution histories on a cumulative, shareable race graph.
 
 Examples: `/octocat`, `/octocat+torvalds`, or `/octocat+torvalds?range=last30`.
 
 ## What is implemented
 
-- Enter-to-chip race creator with a six-profile cap and permanent public URLs.
+- Enter-to-chip race creator with a twelve-profile cap and permanent public URLs.
+- Landing-page tables for the latest viewed races and the top contributors represented in the cached data.
 - Calendar-year, last-30-day, last-365-day, and lifetime filters. Every line starts at zero for the chosen period.
 - Daily cumulative SVG lines, load animation, actual date labels, crosshair, and exact hover values.
 - Leader margin, contribution totals, active days, best streak, profile links, share, and guarded refresh.
@@ -29,7 +30,7 @@ Examples: `/octocat`, `/octocat+torvalds`, or `/octocat+torvalds?range=last30`.
 
 ## Cache flow
 
-1. Parse and normalize the one-to-six handles in the URL.
+1. Parse and normalize the one-to-twelve handles in the URL.
 2. Read every profile from D1 in one query.
 3. Refresh only missing or new-day profile metadata, behind per-profile locks and a short negative cache.
 4. Resolve the selected calendar years and read all needed profile-year blocks in one query.

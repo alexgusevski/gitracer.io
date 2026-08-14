@@ -1,4 +1,4 @@
-import type { LatestRace, ProfileRecord, ProfileYearRecord } from './types';
+import type { LatestRace, ProfileRecord, ProfileYearRecord, TopContributor } from './types';
 
 interface ProfileRow {
   github_id: string;
@@ -141,6 +141,30 @@ export async function getLatestRaces(db: D1Database, limit = 10): Promise<Latest
     handles: parseJson<string[]>(row.handles_json, []),
     lastViewedAt: row.last_viewed_at,
     viewCount: row.view_count,
+  }));
+}
+
+export async function getTopContributors(db: D1Database, limit = 10): Promise<TopContributor[]> {
+  const result = await db
+    .prepare(`
+      SELECT
+        p.login,
+        p.display_name,
+        SUM(py.total) AS total_contributions,
+        COUNT(py.year) AS cached_year_count
+      FROM profiles p
+      INNER JOIN profile_years py ON py.github_id = p.github_id
+      GROUP BY p.github_id, p.login, p.display_name
+      ORDER BY total_contributions DESC, p.login COLLATE NOCASE ASC
+      LIMIT ?
+    `)
+    .bind(Math.max(1, Math.min(limit, 20)))
+    .all<{ login: string; display_name: string | null; total_contributions: number; cached_year_count: number }>();
+  return result.results.map((row) => ({
+    login: row.login,
+    displayName: row.display_name,
+    totalContributions: row.total_contributions,
+    cachedYearCount: row.cached_year_count,
   }));
 }
 

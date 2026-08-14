@@ -1,4 +1,6 @@
 ---
+import { MAX_RACERS } from '../lib/handles';
+
 interface Props {
   initialHandles?: string[];
   compact?: boolean;
@@ -7,7 +9,7 @@ interface Props {
 const { initialHandles = [], compact = false, heading } = Astro.props;
 ---
 
-<section class:list={['race-builder', { 'race-builder--compact': compact }]} data-race-builder>
+<section class:list={['race-builder', { 'race-builder--compact': compact }]} data-race-builder data-max-racers={MAX_RACERS}>
   {heading && <h2>{heading}</h2>}
   <form class="race-builder__form" novalidate>
     <div class="race-builder__input-wrap" data-chip-list>
@@ -35,7 +37,7 @@ const { initialHandles = [], compact = false, heading } = Astro.props;
     </button>
   </form>
   <div class="race-builder__foot">
-    <p data-builder-help>{initialHandles.length}/6 racers · enter to add · no sign-up</p>
+    <p data-builder-help>{initialHandles.length}/{MAX_RACERS} racers · enter to add · no sign-up</p>
     <p class="form-error" data-builder-error role="alert"></p>
   </div>
 </section>
@@ -46,6 +48,7 @@ const { initialHandles = [], compact = false, heading } = Astro.props;
   document.querySelectorAll('[data-race-builder]').forEach((root) => {
     if (!(root instanceof HTMLElement) || root.dataset.ready === 'true') return;
     root.dataset.ready = 'true';
+    const maxRacers = Number(root.dataset.maxRacers);
     const form = root.querySelector('form');
     const list = root.querySelector('[data-chip-list]');
     const input = root.querySelector('[data-handle-input]');
@@ -59,7 +62,7 @@ const { initialHandles = [], compact = false, heading } = Astro.props;
     const update = () => {
       const count = handles().length;
       submit.disabled = count === 0;
-      if (help) help.textContent = `${count}/6 racers · enter to add · no sign-up`;
+      if (help) help.textContent = `${count}/${maxRacers} racers · enter to add · no sign-up`;
       input.placeholder = count ? 'add another handle' : 'type a GitHub handle, then press enter';
     };
     const add = (raw: string) => {
@@ -67,7 +70,7 @@ const { initialHandles = [], compact = false, heading } = Astro.props;
       if (!handle) return;
       if (!HANDLE_PATTERN.test(handle)) return showError('That does not look like a GitHub username.');
       if (handles().includes(handle)) return showError(`@${handle} is already in this race.`);
-      if (handles().length >= 6) return showError('A race can have at most 6 people.');
+      if (handles().length >= maxRacers) return showError(`A race can have at most ${maxRacers} people.`);
       const chip = document.createElement('span');
       chip.className = 'handle-chip';
       chip.dataset.handle = handle;

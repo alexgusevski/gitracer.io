@@ -65,3 +65,10 @@ export interface LatestRace {
   lastViewedAt: string;
   viewCount: number;
 }
+
+export interface TopContributor {
+  login: string;
+  displayName: string | null;
+  totalContributions: number;
+  cachedYearCount: number;
+}

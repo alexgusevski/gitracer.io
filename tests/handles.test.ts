@@ -17,7 +17,16 @@ describe('GitHub handle parsing', () => {
     expect(normalizeHandle(handle)).toBeNull();
   });
 
-  it('caps a race at six unique people', () => {
-    expect(() => parseRaceSlug('a+b+c+d+e+f+g')).toThrow(InvalidRaceError);
+  it('accepts up to twelve unique people', () => {
+    expect(parseRaceSlug('a+b+c+d+e+f+g+h+i+j+k+l')).toHaveLength(12);
+  });
+
+  it('rejects a thirteenth person', () => {
+    expect(() => parseRaceSlug('a+b+c+d+e+f+g+h+i+j+k+l+m')).toThrow(InvalidRaceError);
+  });
+
+  it('accepts twelve maximum-length handles', () => {
+    const slug = Array.from({ length: 12 }, (_, index) => `${String.fromCharCode(97 + index)}${'a'.repeat(38)}`).join('+');
+    expect(parseRaceSlug(slug)).toHaveLength(12);
   });
 });

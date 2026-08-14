@@ -50,7 +50,9 @@ export const GET: APIRoute = async ({ params, request, url, locals }) => {
     ? data.racers.length === 1
       ? `@${data.racers[0]?.login}'s contribution run`
       : data.leader?.tied
-        ? `${data.racers.map((racer) => `@${racer.login}`).join(' vs ')} are tied`
+        ? data.racers.length <= 3
+          ? `${data.racers.map((racer) => `@${racer.login}`).join(' vs ')} are tied`
+          : `${data.racers.length} racers are tied at ${data.racers[0]?.total.toLocaleString()}`
         : `@${data.leader?.login} leads by ${data.leader?.lead.toLocaleString()}`
     : 'Race your GitHub contribution history.';
 
@@ -61,7 +63,8 @@ export const GET: APIRoute = async ({ params, request, url, locals }) => {
           ${data.racers.map((racer, index) => `<path d="${cumulativePath(data, index)}" transform="translate(0 10)" fill="none" stroke="${racer.color || colors[index]}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}
         </svg>
         <div style="position:absolute;right:0;bottom:18px;display:flex;flex-direction:column;align-items:flex-end">
-          ${data.racers.map((racer) => `<div style="display:flex;align-items:center;margin-top:8px;font-size:17px"><span style="width:10px;height:10px;margin-right:9px;border-radius:99px;background:${racer.color}"></span>@${escapeHtml(racer.login)}<b style="margin-left:12px">${racer.total.toLocaleString()}</b></div>`).join('')}
+          ${data.racers.slice(0, 6).map((racer) => `<div style="display:flex;align-items:center;margin-top:8px;font-size:17px"><span style="width:10px;height:10px;margin-right:9px;border-radius:99px;background:${racer.color}"></span>@${escapeHtml(racer.login)}<b style="margin-left:12px">${racer.total.toLocaleString()}</b></div>`).join('')}
+          ${data.racers.length > 6 ? `<div style="display:flex;margin-top:10px;color:#8b949e;font-size:15px">+${data.racers.length - 6} more racers</div>` : ''}
         </div>
       </div>`
     : '<div style="display:flex;align-items:center;flex:1;margin-top:48px;border-top:1px solid #30343d;color:#c9d1d9;font-size:24px">type handles → pick a period → share the race</div>';
@@ -71,7 +74,7 @@ export const GET: APIRoute = async ({ params, request, url, locals }) => {
       <div style="display:flex;align-items:center;padding:8px 14px;border:1px solid #6e7681;border-radius:8px;color:#c9d1d9;font-size:15px"><span style="color:#9784ff;margin-right:8px">●</span> public GitHub data</div>
     </div>
     <div style="display:flex;flex-direction:column;margin-top:42px">
-      <div style="display:flex;color:#9784ff;font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase">${escapeHtml(data ? `${data.range.label} · race in progress` : 'up to 6 racers · one shareable graph')}</div>
+      <div style="display:flex;color:#9784ff;font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase">${escapeHtml(data ? `${data.range.label} · race in progress` : 'up to 12 racers · one shareable graph')}</div>
       <div style="display:flex;max-width:1060px;margin-top:12px;font-size:${data && data.racers.length > 3 ? 54 : 66}px;font-weight:750;letter-spacing:-3.5px;line-height:1.04">${escapeHtml(headline)}</div>
     </div>
     ${chart}

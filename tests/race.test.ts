@@ -39,4 +39,19 @@ describe('race assembly', () => {
     expect(assembleRaceData('alpha', [profiles[0]!], stale, 'year:2026', now).canRefresh).toBe(true);
     expect(assembleRaceData('alpha', [profiles[0]!], stale, 'year:2025', now).canRefresh).toBe(false);
   });
+
+  it('assigns a distinct chart color to each of twelve racers', () => {
+    const twelveProfiles = Array.from({ length: 12 }, (_, index): ProfileRecord => ({
+      githubId: String(index),
+      login: `racer-${index + 1}`,
+      displayName: null,
+      avatarUrl: `https://avatars.example/${index}`,
+      profileUrl: `https://github.com/racer-${index + 1}`,
+      contributionYears: [2026],
+      profileFetchedAt: '2026-08-13T08:00:00.000Z',
+    }));
+    const data = assembleRaceData(twelveProfiles.map((profile) => profile.login).join('+'), twelveProfiles, new Map(), 'last30', now);
+    expect(data.racers).toHaveLength(12);
+    expect(new Set(data.racers.map((racer) => racer.color)).size).toBe(12);
+  });
 });

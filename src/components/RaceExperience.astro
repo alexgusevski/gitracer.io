@@ -104,7 +104,10 @@ const leaderText = data.racers.length === 1
       return `M${points.join(' L')}`;
     };
     const renderChart = () => {
-      const dims = { left: 76, right: 24, top: 24, bottom: 384, width: 900, height: 360 };
+      const legendColumns = 6;
+      const legendRows = Math.ceil(state.racers.length / legendColumns);
+      const chartTop = 24 + Math.max(0, legendRows - 1) * 20;
+      const dims = { left: 76, right: 24, top: chartTop, bottom: 384, width: 900, height: 384 - chartTop };
       const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
       const clipLeft = dims.left - 6;
       const clipWidth = dims.width + 12;
@@ -127,7 +130,12 @@ const leaderText = data.racers.length === 1
         return `<text class="chart-axis-label chart-date-label" x="${x}" y="${dims.bottom + 38}" text-anchor="${anchor}">${esc(dateLabel.format(new Date(`${date}T00:00:00Z`)))}</text>`;
       }).join('');
       const paths = state.racers.map((racer, index) => `<path class="chart-line" data-line="${index}" d="${pathFor(series[index], max, dims)}" style="--line-color:${racer.color}"/><circle class="chart-end" cx="${dims.left + dims.width}" cy="${dims.top + (1 - (series[index].at(-1) || 0) / max) * dims.height}" r="4.5" fill="${racer.color}"/>`).join('');
-      const legend = state.racers.map((racer, index) => `<g transform="translate(${dims.left + index * 150}, 11)"><circle r="4" fill="${racer.color}"/><text class="chart-legend" x="9" y="4">@${esc(racer.login)}</text></g>`).join('');
+      const legend = state.racers.map((racer, index) => {
+        const label = racer.login.length > 17 ? `${racer.login.slice(0, 16)}…` : racer.login;
+        const x = dims.left + (index % legendColumns) * 150;
+        const y = 11 + Math.floor(index / legendColumns) * 20;
+        return `<g transform="translate(${x}, ${y})"><circle r="4" fill="${racer.color}"/><text class="chart-legend" x="9" y="4">@${esc(label)}</text></g>`;
+      }).join('');
       svg.innerHTML = `<title>Cumulative public GitHub contributions from ${esc(state.range.start)} to ${esc(state.range.end)}</title><defs><clipPath id="${clipId}" clipPathUnits="userSpaceOnUse"><rect data-chart-reveal x="${clipLeft}" y="0" width="${reducedMotion ? clipWidth : 0}" height="440"/></clipPath></defs>${grid}${dates}<g data-chart-series clip-path="url(#${clipId})">${paths}</g>${legend}<line class="chart-crosshair" data-crosshair y1="${dims.top}" y2="${dims.bottom}" hidden/><rect data-chart-hit x="${dims.left}" y="${dims.top}" width="${dims.width}" height="${dims.height}" fill="transparent"/>`;
       if (!reducedMotion) {
         const reveal = svg.querySelector('[data-chart-reveal]');

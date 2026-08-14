@@ -2,12 +2,19 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import RaceBuilder from '../components/RaceBuilder.astro';
 import LatestRaces from '../components/LatestRaces.astro';
-import { getLatestRaces } from '../lib/db';
+import TopContributors from '../components/TopContributors.astro';
+import { getLatestRaces, getTopContributors } from '../lib/db';
 import { runtimeEnv } from '../lib/server';
-import type { LatestRace } from '../lib/types';
+import type { LatestRace, TopContributor } from '../lib/types';
 
 let races: LatestRace[] = [];
-try { races = await getLatestRaces(runtimeEnv().DB, 10); } catch (error) { console.error('latest_races_unavailable', error); }
+let contributors: TopContributor[] = [];
+const db = runtimeEnv().DB;
+const [racesResult, contributorsResult] = await Promise.allSettled([getLatestRaces(db, 10), getTopContributors(db, 10)]);
+if (racesResult.status === 'fulfilled') races = racesResult.value;
+else console.error('latest_races_unavailable', racesResult.reason);
+if (contributorsResult.status === 'fulfilled') contributors = contributorsResult.value;
+else console.error('top_contributors_unavailable', contributorsResult.reason);
 const schema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
@@ -22,15 +29,16 @@ const schema = {
   <section class="hero shell">
     <div class="hero__badge"><span>●</span> public beta · built for friendly rivalry</div>
     <h1>Race your GitHub<br /><span>contribution history.</span></h1>
-    <p class="hero__lede">Put up to six public profiles on one fair, cumulative graph. Pick a period, watch the lines run, then share the URL.</p>
+    <p class="hero__lede">Put up to 12 public profiles on one fair, cumulative graph. Pick a period, watch the lines run, then share the URL.</p>
     <RaceBuilder />
     <div class="hero__proof">
       <span><b>01</b> enter handles</span><i>→</i><span><b>02</b> pick a period</span><i>→</i><span><b>03</b> share the race</span>
     </div>
   </section>
-  <section class="ticker" aria-label="GitRacer features"><div><span>LAST 30 DAYS</span><i>◆</i><span>ANY CALENDAR YEAR</span><i>◆</i><span>LIFETIME</span><i>◆</i><span>UP TO 6 RACERS</span><i>◆</i><span>PUBLIC SHARE URLS</span><i>◆</i><span>LAST 30 DAYS</span><i>◆</i><span>ANY CALENDAR YEAR</span><i>◆</i><span>LIFETIME</span></div></section>
+  <section class="ticker" aria-label="GitRacer features"><div><span>LAST 30 DAYS</span><i>◆</i><span>ANY CALENDAR YEAR</span><i>◆</i><span>LIFETIME</span><i>◆</i><span>UP TO 12 RACERS</span><i>◆</i><span>PUBLIC SHARE URLS</span><i>◆</i><span>LAST 30 DAYS</span><i>◆</i><span>ANY CALENDAR YEAR</span><i>◆</i><span>LIFETIME</span></div></section>
   <div class="shell home-content">
     <LatestRaces races={races} />
+    <TopContributors contributors={contributors} />
     <section class="how-strip">
       <span class="eyebrow">what gets counted?</span>
       <div><h2>Whatever GitHub puts in the squares.</h2><p>Commits, pull requests, issues, and reviews are combined exactly as GitHub reports them. We cache the public result; we never ask for repository access.</p><a href="/how-it-works">read the methodology →</a></div>
