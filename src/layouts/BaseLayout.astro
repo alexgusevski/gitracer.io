@@ -70,7 +70,7 @@ const {
           {SPONSOR_LINKS_ENABLED && <a href="/sponsor">sponsor</a>}
         </nav>
         <div class="site-header__actions">
-          <GitHubLink compact />
+          <GitHubLink compact label="GitHub" />
           <ThemeToggle compact />
         </div>
       </div>
@@ -93,7 +93,6 @@ const {
     <script>
       type ThemeMode = 'system' | 'light' | 'dark';
       const modes: ThemeMode[] = ['system', 'light', 'dark'];
-      const icons: Record<ThemeMode, string> = { system: '◐', light: '☀', dark: '☾' };
       const currentMode = (): ThemeMode => {
         const saved = localStorage.getItem('gitracer-theme');
         return saved === 'light' || saved === 'dark' ? saved : 'system';
@@ -105,7 +104,7 @@ const {
           button.setAttribute('title', `Theme: ${mode}`);
           const icon = button.querySelector('[data-theme-icon]');
           const label = button.querySelector('[data-theme-label]');
-          if (icon) icon.textContent = icons[mode];
+          if (icon instanceof HTMLElement) icon.dataset.mode = mode;
           if (label) label.textContent = mode;
         });
       };

@@ -8,10 +8,10 @@ const { compact = false, label } = Astro.props;
 ---
 
 <a
-  class:list={['github-link', { 'github-link--compact': compact }]}
+  class:list={['github-link', { 'github-link--compact': compact, 'github-link--labeled': compact && label }]}
   href="https://github.com/alexgusevski/gitracer.io"
   rel="noreferrer"
-  aria-label={compact ? 'View GitRacer source on GitHub' : undefined}
+  aria-label={compact && !label ? 'View GitRacer source on GitHub' : undefined}
   title="View GitRacer source on GitHub"
 >
   <svg viewBox="0 0 24 24" aria-hidden="true">
