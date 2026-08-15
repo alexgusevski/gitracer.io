@@ -1,12 +1,89 @@
-import { ImageResponse, cache } from '@cf-wasm/og/workerd';
-import { t } from '@cf-wasm/og/html-to-react';
+import { Resvg } from '@cf-wasm/resvg/legacy/workerd';
+import { satori } from '@cf-wasm/satori/workerd';
 import type { APIRoute } from 'astro';
+import { isTag, isText, type AnyNode } from 'domhandler';
+import { parseDocument } from 'htmlparser2';
+import { createElement, type ReactElement, type ReactNode } from 'react';
+import notoSansDataUrl from '../assets/fonts/noto-sans-v27-latin-regular.ttf?inline';
 import { parseRaceSlug, raceSlug } from './handles';
+import { loadAdditionalAsset } from './og-assets';
 import { loadRace } from './race';
 import { clientIp, runtimeEnv } from './server';
 import type { RaceData } from './types';
 
 const colors = ['#9784ff', '#58a6ff', '#d56bff', '#55d6e8', '#ff9f6e', '#f778ba'];
+const imageHeaders = { 'Cache-Control': 'public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400' };
+const reactAttributeNames: Record<string, string> = {
+  viewbox: 'viewBox',
+  'stroke-dasharray': 'strokeDasharray',
+  'stroke-width': 'strokeWidth',
+  'stroke-linecap': 'strokeLinecap',
+  'stroke-linejoin': 'strokeLinejoin',
+};
+
+function inlineStyle(value: string): Record<string, string> {
+  const style: Record<string, string> = {};
+  for (const declaration of value.split(';')) {
+    const separator = declaration.indexOf(':');
+    if (separator === -1) continue;
+    const property = declaration.slice(0, separator).trim().toLowerCase().replace(/^-ms-/, 'ms-').replace(/-(.)/g, (_, character: string) => character.toUpperCase());
+    style[property] = declaration.slice(separator + 1).trim();
+  }
+  return style;
+}
+
+function convertNode(node: AnyNode): ReactNode {
+  if (isText(node)) return node.data;
+  if (!isTag(node)) return null;
+
+  const properties: Record<string, unknown> = {};
+  for (const [name, value] of Object.entries(node.attribs)) {
+    if (name.startsWith('on')) continue;
+    const reactName = reactAttributeNames[name.toLowerCase()] ?? name;
+    properties[reactName] = reactName === 'style' ? inlineStyle(value) : value;
+  }
+  const children = node.children.map(convertNode).filter((child) => child !== null && child !== undefined && child !== false);
+  const normalized = children.length === 0 ? undefined : children.length === 1 ? children[0] : children;
+  return createElement(node.name, properties, normalized);
+}
+
+function htmlToReact(html: string): ReactElement {
+  const roots = parseDocument(html, { decodeEntities: true }).childNodes.map(convertNode).filter((node): node is ReactElement => node !== null && typeof node === 'object' && 'type' in node);
+  if (roots.length !== 1) throw new Error('OG markup must contain exactly one root element');
+  return roots[0]!;
+}
+
+function decodeDataUrl(dataUrl: string): ArrayBuffer {
+  const separator = dataUrl.indexOf(',');
+  if (separator === -1 || !dataUrl.slice(0, separator).endsWith(';base64')) throw new Error('Expected an inline base64 font');
+  return Uint8Array.from(atob(dataUrl.slice(separator + 1)), (character) => character.charCodeAt(0)).buffer;
+}
+
+const notoSans = decodeDataUrl(notoSansDataUrl);
+
+async function imageResponse(element: ReactNode): Promise<Response> {
+  const width = 1200;
+  const height = 630;
+  const svg = await satori(element, {
+    width,
+    height,
+    fonts: [{ name: 'sans serif', data: notoSans, weight: 400, style: 'normal' }],
+    loadAdditionalAsset,
+  });
+  const renderer = await Resvg.async(svg, { fitTo: { mode: 'width', value: width } });
+  try {
+    const rendered = renderer.render();
+    try {
+      return new Response(Uint8Array.from(rendered.asPng()), {
+        headers: { ...imageHeaders, 'Content-Type': 'image/png' },
+      });
+    } finally {
+      rendered.free();
+    }
+  } finally {
+    renderer.free();
+  }
+}
 
 function escapeHtml(value: unknown): string {
   return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character] ?? character);
@@ -24,8 +101,7 @@ function cumulativePath(data: RaceData, index: number): string {
   return `M${points.join(' L')}`;
 }
 
-export const GET: APIRoute = async ({ params, request, url, locals }) => {
-  cache.setExecutionContext(locals.cfContext);
+export const GET: APIRoute = async ({ params, request, url }) => {
   let data: RaceData | null = null;
   if (params.race !== 'default') {
     try {
@@ -42,7 +118,7 @@ export const GET: APIRoute = async ({ params, request, url, locals }) => {
         clientIp: clientIp(request),
       });
     } catch (error) {
-      console.error('og_race_load_failed', error);
+      console.error(JSON.stringify({ event: 'og_race_load_failed', message: error instanceof Error ? error.message : String(error) }));
     }
   }
 
@@ -80,5 +156,5 @@ export const GET: APIRoute = async ({ params, request, url, locals }) => {
     ${chart}
   </div>`;
 
-  return ImageResponse.async(t(html), { width: 1200, height: 630, headers: { 'Cache-Control': 'public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400' } });
+  return imageResponse(htmlToReact(html));
 };
