@@ -2,6 +2,7 @@
 import '@fontsource-variable/jetbrains-mono';
 import '@fontsource-variable/mona-sans';
 import '../styles/global.css';
+import GitHubLink from '../components/GitHubLink.astro';
 import SponsorRails from '../components/SponsorRails.astro';
 import ThemeToggle from '../components/ThemeToggle.astro';
 
@@ -68,7 +69,10 @@ const {
           <a href="/how-it-works">how it works</a>
           {SPONSOR_LINKS_ENABLED && <a href="/sponsor">sponsor</a>}
         </nav>
-        <ThemeToggle compact />
+        <div class="site-header__actions">
+          <GitHubLink compact />
+          <ThemeToggle compact />
+        </div>
       </div>
     </header>
     {SPONSORS_ENABLED && <SponsorRails />}
@@ -81,7 +85,7 @@ const {
           <img src="/avatar/alexgusevski" alt="" width="34" height="34" />
           <span>built by <b>@alexgusevski</b></span>
         </a>
-        <nav aria-label="Footer navigation"><a href="/privacy">privacy</a><a href="/how-it-works">methodology</a><a href="https://github.com/alexgusevski/gitracer.io" rel="noreferrer">source</a>{SPONSOR_LINKS_ENABLED && <a href="/sponsor">sponsor</a>}</nav>
+        <nav aria-label="Footer navigation"><a href="/privacy">privacy</a><a href="/how-it-works">methodology</a><GitHubLink label="source" />{SPONSOR_LINKS_ENABLED && <a href="/sponsor">sponsor</a>}</nav>
         <ThemeToggle />
       </div>
     </footer>
