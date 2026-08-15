@@ -4,9 +4,22 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
+    groups:
+      routine-updates:
+        patterns: ['*']
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+      # Rendering upgrades need an explicit pixel-equivalence review.
+      - dependency-name: '@cf-wasm/*'
+        update-types: ['version-update:semver-minor']
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
+    groups:
+      actions:
+        patterns: ['*']
