@@ -69,8 +69,8 @@ img { display: block; max-width: 100%; }
 
 .site-header { position: sticky; top: 0; z-index: 50; border-top: 3px solid var(--race); border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 91%, transparent); backdrop-filter: blur(14px); }
 .site-header__inner { width: min(1190px, calc(100% - 32px)); min-height: 68px; margin: auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 28px; }
-.wordmark { display: inline-flex; align-items: baseline; gap: 2px; width: max-content; font-family: var(--mono); font-size: 17px; letter-spacing: -.04em; }
-.wordmark > span { margin-right: 8px; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 7px; box-shadow: 0 4px 12px rgba(1, 4, 9, .2); }
+.wordmark { display: inline-flex; align-items: center; gap: 2px; width: max-content; font-family: var(--mono); font-size: 17px; line-height: 1; letter-spacing: -.04em; }
+.wordmark > span { flex: 0 0 auto; margin-right: 8px; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 7px; box-shadow: 0 4px 12px rgba(1, 4, 9, .2); }
 .wordmark > span img { width: 100%; height: 100%; }
 .wordmark b { font-weight: 750; }
 .wordmark i { color: var(--green); font-style: normal; font-weight: 700; }
@@ -79,11 +79,20 @@ img { display: block; max-width: 100%; }
 .site-header nav a:hover { color: var(--ink); }
 .site-header nav a::after { content: ''; position: absolute; right: 0; bottom: -8px; left: 0; height: 1px; background: var(--green); transform: scaleX(0); transition: transform .18s ease; }
 .site-header nav a:hover::after { transform: scaleX(1); }
-.site-header .theme-toggle { justify-self: end; }
+.site-header__actions { justify-self: end; display: flex; align-items: center; gap: 2px; }
 
 .theme-toggle { min-width: 108px; height: 36px; display: inline-flex; justify-content: center; align-items: center; gap: 9px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--panel); color: var(--muted); cursor: pointer; box-shadow: var(--shadow); transition: border-color .15s ease, transform .15s ease; }
 .theme-toggle:hover { border-color: var(--line-strong); transform: translateY(-1px); color: var(--ink); }
-.theme-toggle.compact { min-width: 38px; width: 38px; padding: 0; }
+.theme-toggle.compact { min-width: 40px; width: 40px; height: 40px; padding: 0; border-color: transparent; border-radius: 8px; background: transparent; box-shadow: none; }
+.theme-toggle.compact:hover { border-color: transparent; background: color-mix(in srgb, var(--ink) 7%, transparent); transform: none; }
+.theme-toggle.compact [data-theme-icon] { display: grid; place-items: center; font-size: 22px; line-height: 1; }
+.github-link { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); transition: color .15s ease, background-color .15s ease, transform .15s ease; }
+.github-link:hover { color: var(--ink); }
+.github-link svg { width: 17px; height: 17px; fill: currentColor; }
+.github-link--compact { width: 40px; height: 40px; justify-content: center; border-radius: 8px; background: transparent; }
+.github-link--compact:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.github-link--compact svg { width: 21px; height: 21px; }
+.github-link:focus-visible, .theme-toggle:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 
 .hero { position: relative; min-height: 608px; padding: 104px 0 76px; text-align: left; display: flex; flex-direction: column; align-items: stretch; }
 .hero::before { content: ''; position: absolute; z-index: -1; inset: 32px -24px 12px; opacity: .42; background-image: linear-gradient(to right, var(--line) 1px, transparent 1px), linear-gradient(to bottom, var(--line) 1px, transparent 1px); background-size: 72px 72px; mask-image: linear-gradient(to bottom, transparent, black 22%, transparent 88%); }
@@ -242,7 +251,9 @@ img { display: block; max-width: 100%; }
 .builder-credit img { width: 34px; height: 34px; border: 1px solid var(--line-strong); border-radius: 50%; background: var(--paper); object-fit: cover; }
 .builder-credit b { color: var(--ink); font-weight: 650; }
 .site-footer nav { display: flex; flex-wrap: wrap; gap: 18px; color: var(--muted); font-family: var(--mono); font-size: 10px; }
-.site-footer nav a:hover { color: var(--green); }
+.site-footer nav a:hover, .site-footer nav .github-link:hover { color: var(--green); }
+.site-footer nav .github-link { gap: 5px; }
+.site-footer nav .github-link svg { width: 14px; height: 14px; }
 
 .error-page, .content-page { min-height: 640px; padding: 90px 0 120px; }
 .error-code { color: var(--green); font-size: 12px; }
