@@ -2,6 +2,15 @@
   "name": "gitracer.io",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
+  "homepage": "https://gitracer.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alexgusevski/gitracer.io.git"
+  },
+  "bugs": {
+    "url": "https://github.com/alexgusevski/gitracer.io/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=22.12.0"
