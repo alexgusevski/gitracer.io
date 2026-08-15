@@ -231,6 +231,7 @@ img { display: block; max-width: 100%; }
 .race-note p { margin: 1px 0 0; }
 .new-matchup { padding: 35px 0 100px; }
 .race-builder--compact { width: 100%; margin: 0; padding-top: 34px; border-top: 1px solid var(--line); }
+.race-page-tables { padding-top: 76px; }
 
 .sponsor-rail { position: fixed; z-index: 20; top: 86px; bottom: 18px; width: 244px; display: none; grid-template-rows: repeat(3, 1fr); gap: 12px; }
 .sponsor-rail--left { left: 16px; }
@@ -314,6 +315,7 @@ img { display: block; max-width: 100%; }
   .race-builder__input-wrap { min-height: 58px; }
   .hero__proof { display: none; }
   .home-content { padding-top: 56px; }
+  .race-page-tables { padding-top: 56px; }
   .section-heading { align-items: flex-start; }
   .section-heading h2 { font-size: 28px; }
   .status-dot { display: none; }
