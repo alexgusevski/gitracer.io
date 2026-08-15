@@ -4,7 +4,8 @@
   "main": "@astrojs/cloudflare/entrypoints/server",
   "compatibility_date": "2026-08-13",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
-  "workers_dev": true,
+  "workers_dev": false,
+  "preview_urls": false,
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"
@@ -17,12 +18,6 @@
     {
       "pattern": "www.gitracer.io",
       "custom_domain": true
-    }
-  ],
-  "kv_namespaces": [
-    {
-      "binding": "SESSION",
-      "id": "36342ece8eec4c58aa45f2d70ef9a502"
     }
   ],
   "d1_databases": [
@@ -50,6 +45,10 @@
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,
-    "logs": { "invocation_logs": true }
+    "logs": {
+      "enabled": true,
+      // Preserve every explicit application/error log without storing a URL log for every request.
+      "invocation_logs": false
+    }
   }
 }
