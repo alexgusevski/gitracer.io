@@ -1,16 +1,20 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import LatestRaces from '../components/LatestRaces.astro';
 import RaceBuilder from '../components/RaceBuilder.astro';
 import RaceExperience from '../components/RaceExperience.astro';
-import { recordRaceView } from '../lib/db';
+import TopContributors from '../components/TopContributors.astro';
+import { getLatestRaces, getTopContributors, recordRaceView } from '../lib/db';
 import { parseRaceSlug, raceSlug } from '../lib/handles';
 import { loadRace, RaceLoadError } from '../lib/race';
 import { clientIp, runtimeEnv } from '../lib/server';
-import type { RaceData } from '../lib/types';
+import type { LatestRace, RaceData, TopContributor } from '../lib/types';
 
 let handles: string[] = [];
 let slug = '';
 let data: RaceData | null = null;
+let races: LatestRace[] = [];
+let contributors: TopContributor[] = [];
 let errorMessage = '';
 try {
   handles = parseRaceSlug(Astro.params.race);
@@ -19,6 +23,11 @@ try {
   const env = runtimeEnv();
   data = await loadRace({ db: env.DB, githubToken: env.GITHUB_TOKEN, rateLimitSecret: env.RATE_LIMIT_SECRET, handles, slug, rangeKey: Astro.url.searchParams.get('range'), clientIp: clientIp(Astro.request) });
   Astro.locals.cfContext.waitUntil(recordRaceView(env.DB, slug, handles).catch((error) => console.error('record_race_view_failed', error)));
+  const [racesResult, contributorsResult] = await Promise.allSettled([getLatestRaces(env.DB, 10), getTopContributors(env.DB, 10)]);
+  if (racesResult.status === 'fulfilled') races = racesResult.value;
+  else console.error('latest_races_unavailable', racesResult.reason);
+  if (contributorsResult.status === 'fulfilled') contributors = contributorsResult.value;
+  else console.error('top_contributors_unavailable', contributorsResult.reason);
 } catch (error) {
   Astro.response.status = error instanceof RaceLoadError || (error instanceof Error && 'status' in error) ? Number((error as { status: number }).status) : 500;
   errorMessage = error instanceof Error ? error.message : 'This race could not be loaded.';
@@ -33,7 +42,13 @@ const image = new URL(`/og/${slug || 'default'}.png${data ? `?range=${encodeURIC
   {data ? (
     <>
       <div class="shell race-page"><RaceExperience data={data} /></div>
-      <div class="shell new-matchup"><RaceBuilder initialHandles={data.racers.map((racer) => racer.login)} compact heading="Change the lineup" /></div>
+      <div class="shell new-matchup">
+        <RaceBuilder initialHandles={data.racers.map((racer) => racer.login)} compact heading="Change the lineup" />
+        <div class="race-page-tables">
+          <LatestRaces races={races} />
+          <TopContributors contributors={contributors} />
+        </div>
+      </div>
     </>
   ) : (
     <section class="shell error-page"><span class="error-code">{Astro.response.status}</span><h1>That race hit the gravel.</h1><p>{errorMessage}</p><a class="button button--primary" href="/">start a different race →</a></section>
