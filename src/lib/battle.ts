@@ -99,6 +99,18 @@ export interface BattleHudState {
   teams: BattleTeamState[];
 }
 
+export interface ContributionGridLayout {
+  weekCount: number;
+  bandCount: number;
+  columnsPerBand: number;
+  step: number;
+  bandGap: number;
+  cellSize: number;
+  cornerRadius: number;
+  width: number;
+  height: number;
+}
+
 interface PresetDefinition extends BattlePreset {
   contributorCount: number;
   dayCount: number;
@@ -246,6 +258,49 @@ export function projectedFighterCount(contributors: BattleContributor[], unitSca
     const contributions = contributor.days.reduce((sum, day) => sum + day.count, 0);
     return total + Math.floor(contributions / Math.max(1, unitScale));
   }, 0);
+}
+
+export function calculateContributionGridLayout(
+  dayCount: number,
+  firstWeekday: number,
+  maxWidth = 152,
+  maxHeight = 68,
+): ContributionGridLayout {
+  const normalizedDayCount = Math.max(0, Math.floor(dayCount));
+  const normalizedWeekday = Math.max(0, Math.min(6, Math.floor(firstWeekday)));
+  const weekCount = Math.max(1, Math.ceil((normalizedWeekday + normalizedDayCount) / 7));
+  const gapRows = 1.35;
+  let bandCount = 1;
+  let columnsPerBand = weekCount;
+  let step = Math.min(8, maxWidth / weekCount, maxHeight / 7);
+
+  for (let candidateBands = 2; candidateBands <= Math.min(10, weekCount); candidateBands += 1) {
+    const candidateColumns = Math.ceil(weekCount / candidateBands);
+    const candidateRows = candidateBands * 7 + (candidateBands - 1) * gapRows;
+    const candidateStep = Math.min(8, maxWidth / candidateColumns, maxHeight / candidateRows);
+    if (candidateStep > step) {
+      bandCount = candidateBands;
+      columnsPerBand = candidateColumns;
+      step = candidateStep;
+    }
+  }
+
+  const cellSize = Math.max(0.7, step * 0.78);
+  const bandGap = gapRows * step;
+  const width = (columnsPerBand - 1) * step + cellSize;
+  const height = bandCount * 7 * step + (bandCount - 1) * bandGap - (step - cellSize);
+
+  return {
+    weekCount,
+    bandCount,
+    columnsPerBand,
+    step,
+    bandGap,
+    cellSize,
+    cornerRadius: Math.min(1.4, cellSize * 0.2),
+    width,
+    height,
+  };
 }
 
 export class BattleSimulation {

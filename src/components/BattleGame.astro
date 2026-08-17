@@ -38,7 +38,7 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
 
 <script>
   // @ts-nocheck -- this client-only renderer consumes server-validated race JSON and custom mode events.
-  import { BattleSimulation, createBattleScenarioFromRace, type BattleHudState, type BattleScenario } from '../lib/battle';
+  import { BattleSimulation, calculateContributionGridLayout, createBattleScenarioFromRace, type BattleHudState, type BattleScenario } from '../lib/battle';
   import { BattleRenderer } from '../lib/battle-renderer';
 
   const exactNumber = new Intl.NumberFormat('en');
@@ -70,6 +70,7 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
     let accumulator = 0;
     let previousTime = performance.now();
     let lastHudPaint = 0;
+    const graphLayouts = new WeakMap();
 
     const scenarioSignature = (value: BattleScenario) => {
       let hash = 2166136261;
@@ -113,6 +114,7 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
         hud.style.left = `${(team.base.x / 1280) * 100}%`;
         hud.style.top = `${(team.base.y / 720) * 100}%`;
         hud.style.setProperty('--team', team.contributor.color);
+        hud.classList.toggle('is-right', team.base.x > 760);
 
         const handle = document.createElement('b');
         handle.textContent = `@${team.contributor.login}`;
@@ -131,10 +133,14 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
         graph.dataset.baseHistory = '';
         const days = team.contributor.days;
         const firstWeekday = days[0] ? new Date(`${days[0].date}T00:00:00Z`).getUTCDay() : 0;
-        const columns = Math.max(1, Math.ceil((firstWeekday + days.length) / 7));
-        graph.width = columns * 5 - 1;
-        graph.height = 34;
-        graph.style.width = `${Math.min(106, Math.max(40, graph.width))}px`;
+        const layout = calculateContributionGridLayout(days.length, firstWeekday);
+        const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
+        graph.width = Math.ceil(layout.width * pixelRatio);
+        graph.height = Math.ceil(layout.height * pixelRatio);
+        graph.style.width = `${layout.width}px`;
+        graph.style.height = `${layout.height}px`;
+        hud.style.setProperty('--history-width', `${layout.width}px`);
+        graphLayouts.set(graph, { ...layout, firstWeekday, pixelRatio });
 
         const hp = document.createElement('div');
         hp.className = 'base-hp';
@@ -163,17 +169,24 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
         if (!(graph instanceof HTMLCanvasElement)) return;
         const context = graph.getContext('2d');
         if (!context) return;
-        context.clearRect(0, 0, graph.width, graph.height);
-        context.imageSmoothingEnabled = false;
         const days = team.contributor.days;
-        const firstWeekday = days[0] ? new Date(`${days[0].date}T00:00:00Z`).getUTCDay() : 0;
+        const layout = graphLayouts.get(graph);
+        if (!layout) return;
+        context.setTransform(layout.pixelRatio, 0, 0, layout.pixelRatio, 0, 0);
+        context.clearRect(0, 0, layout.width, layout.height);
         days.forEach((day, dayIndex) => {
-          const position = firstWeekday + dayIndex;
-          const column = Math.floor(position / 7);
+          const position = layout.firstWeekday + dayIndex;
+          const week = Math.floor(position / 7);
+          const band = Math.floor(week / layout.columnsPerBand);
+          const column = week % layout.columnsPerBand;
           const row = position % 7;
+          const x = column * layout.step;
+          const y = band * (7 * layout.step + layout.bandGap) + row * layout.step;
           const level = dayIndex <= state.dayIndex ? (day.level || fallbackLevel(day.count)) : 'NONE';
           context.fillStyle = palette[level] || palette.NONE;
-          context.fillRect(column * 5, row * 5, 4, 4);
+          context.beginPath();
+          context.roundRect(x, y, layout.cellSize, layout.cellSize, layout.cornerRadius);
+          context.fill();
         });
       });
     };
@@ -285,15 +298,21 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
   .battle-field { position: relative; width: 100%; overflow: hidden; background: var(--paper-2); }
   .battle-field > canvas { position: relative; z-index: 1; width: 100%; height: auto; display: block; aspect-ratio: 16 / 9; background: var(--paper-2); }
   .base-hud-layer { position: absolute; z-index: 2; inset: 0; aspect-ratio: 16 / 9; pointer-events: none; }
-  .base-hud-layer :global(.base-hud) { position: absolute; width: 160px; display: grid; grid-template-columns: 46px 106px; grid-template-rows: auto 46px 7px auto; align-items: center; gap: 3px 8px; transform: translate(-23px, -50%); }
+  .base-hud-layer :global(.base-hud) { --history-width: 40px; position: absolute; width: calc(54px + var(--history-width)); display: grid; grid-template-columns: 46px var(--history-width); grid-template-rows: auto minmax(46px, auto) 7px auto; align-items: center; gap: 3px 8px; transform: translate(-23px, -50%); }
+  .base-hud-layer :global(.base-hud.is-right) { grid-template-columns: var(--history-width) 46px; transform: translate(calc(-100% + 23px), -50%); }
   .base-hud-layer :global(.base-hud > b) { grid-column: 1 / -1; overflow: hidden; color: var(--ink); font-size: 7px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+  .base-hud-layer :global(.base-hud.is-right > b) { text-align: right; }
   .base-hud-layer :global(.base-profile) { grid-column: 1; grid-row: 2; width: 44px; height: 44px; display: grid; place-items: center; border: 2px solid var(--team); border-radius: 50%; overflow: hidden; background: var(--panel); box-shadow: 2px 2px 0 color-mix(in srgb, var(--ink) 14%, transparent); }
   .base-hud-layer :global(.base-profile img) { grid-area: 1 / 1; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
   .base-hud-layer :global(.base-profile i) { grid-area: 1 / 1; display: none; font-size: 27px; font-style: normal; line-height: 1; }
-  .base-hud-layer :global(.base-history) { grid-column: 2; grid-row: 2; height: 34px; align-self: center; background: transparent; image-rendering: pixelated; }
+  .base-hud-layer :global(.base-history) { grid-column: 2; grid-row: 2; align-self: center; background: transparent; }
   .base-hud-layer :global(.base-hp) { grid-column: 1; grid-row: 3; width: 44px; height: 7px; justify-self: center; overflow: hidden; background: #d73535; }
   .base-hud-layer :global(.base-hp span) { display: block; width: 100%; height: 100%; background: #9be332; transition: width .12s linear; }
   .base-hud-layer :global(.base-hud > small) { grid-column: 1; grid-row: 4; color: var(--muted); font-size: 6px; line-height: 1; text-align: center; }
+  .base-hud-layer :global(.base-hud.is-right .base-profile),
+  .base-hud-layer :global(.base-hud.is-right .base-hp),
+  .base-hud-layer :global(.base-hud.is-right > small) { grid-column: 2; }
+  .base-hud-layer :global(.base-hud.is-right .base-history) { grid-column: 1; }
   .base-hud-layer :global(.base-hud.is-dead) { filter: grayscale(.75); }
   .base-hud-layer :global(.base-hud.is-dead .base-profile img) { display: none; }
   .base-hud-layer :global(.base-hud.is-dead .base-profile i) { display: block; }
@@ -327,6 +346,7 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
   }
   @media (max-width: 640px) {
     .base-hud-layer :global(.base-hud) { transform: translate(-23px, -50%) scale(.68); transform-origin: 23px center; }
+    .base-hud-layer :global(.base-hud.is-right) { transform: translate(calc(-100% + 23px), -50%) scale(.68); transform-origin: calc(100% - 23px) center; }
     .battle-watermark { top: 9px; right: 9px; font-size: 10px; }
     .winner-card { padding: 12px; grid-template-columns: auto auto 1fr; gap: 8px; }
     .winner-trophy { font-size: 22px; }

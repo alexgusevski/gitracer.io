@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BattleSimulation,
   FULL_DENSITY_CONTRIBUTIONS,
+  calculateContributionGridLayout,
   calculateUnitScale,
   createBattleScenario,
   createBattleScenarioFromRace,
@@ -69,6 +70,29 @@ describe('race battle scenarios', () => {
     expect(scenario.durationSeconds).toBe(30);
     expect(scenario.contributors[0]?.days).toEqual(days);
     expect(scenario.description).toContain('30 days');
+  });
+});
+
+describe('contribution graph layout', () => {
+  it('keeps short ranges in one seven-day band with square cells', () => {
+    const layout = calculateContributionGridLayout(30, 4);
+    expect(layout).toMatchObject({ weekCount: 5, bandCount: 1 });
+    expect(layout.cellSize).toBeLessThan(layout.step);
+    expect(layout.cornerRadius).toBeGreaterThan(0);
+    expect(layout.width).toBeLessThanOrEqual(152);
+    expect(layout.height).toBeLessThanOrEqual(68);
+  });
+
+  it('wraps year and lifetime histories without stretching their cells', () => {
+    const year = calculateContributionGridLayout(365, 4);
+    const lifetime = calculateContributionGridLayout(20 * 365, 1);
+    expect(year.bandCount).toBeGreaterThan(1);
+    expect(lifetime.bandCount).toBeGreaterThan(year.bandCount);
+    for (const layout of [year, lifetime]) {
+      expect(layout.width).toBeLessThanOrEqual(152);
+      expect(layout.height).toBeLessThanOrEqual(68);
+      expect(layout.cellSize).toBeGreaterThan(0);
+    }
   });
 });
 
