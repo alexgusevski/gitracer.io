@@ -25,11 +25,18 @@ const leaderText = data.racers.length === 1
     <div class="race-actions">
       <button class="button button--quiet race-mode-toggle" type="button" data-mode-toggle aria-pressed="false">
         <span class="race-mode-icon" data-battle-mode-icon aria-hidden="true">⚔</span>
-        <span class="race-mode-icon" data-graph-mode-icon aria-hidden="true" hidden><svg viewBox="0 0 20 20"><path d="M2.5 15.5 6.8 11l3 2.4 6-7"/><path d="M14 6.4h2.2v2.3"/></svg></span>
+        <span class="race-mode-icon" data-graph-mode-icon aria-hidden="true" hidden>
+          <svg viewBox="0 0 20 20"><path d="M2.5 15.5 6.8 11l3 2.4 6-7"/><path d="M14 6.4h2.2v2.3"/></svg>
+        </span>
         <span data-mode-label>battle mode</span>
       </button>
-      <button class="button button--quiet race-action-icon" type="button" data-share-race aria-label="Share race" title="Share race"><span data-action-icon aria-hidden="true">↗</span></button>
-      <button class="button button--quiet race-action-icon" type="button" data-refresh-race aria-label="Refresh race data" title="Refresh race data" hidden={!data.canRefresh}><span data-action-icon aria-hidden="true">↻</span></button>
+      <button class="button button--quiet race-action-icon" type="button" data-share-race aria-label="Share race" title="Share race">
+        <span data-share-icon aria-hidden="true">↗</span>
+        <span data-share-copied-icon aria-hidden="true" hidden>✓</span>
+      </button>
+      <button class="button button--quiet race-action-icon" type="button" data-refresh-race aria-label="Refresh race data" title="Refresh race data" hidden={!data.canRefresh}>
+        <span aria-hidden="true">↻</span>
+      </button>
     </div>
   </div>
 
@@ -260,11 +267,14 @@ const leaderText = data.racers.length === 1
         if (navigator.share) await navigator.share({ title: document.title, text: root.querySelector('[data-leader-copy]')?.textContent || '', url: location.href });
         else if (button instanceof HTMLButtonElement) {
           await navigator.clipboard.writeText(location.href);
-          const icon = button.querySelector('[data-action-icon]');
-          if (icon) icon.textContent = '✓';
+          const shareIcon = button.querySelector('[data-share-icon]');
+          const copiedIcon = button.querySelector('[data-share-copied-icon]');
+          if (shareIcon instanceof HTMLElement) shareIcon.hidden = true;
+          if (copiedIcon instanceof HTMLElement) copiedIcon.hidden = false;
           button.ariaLabel = 'Race link copied';
           window.setTimeout(() => {
-            if (icon) icon.textContent = '↗';
+            if (shareIcon instanceof HTMLElement) shareIcon.hidden = false;
+            if (copiedIcon instanceof HTMLElement) copiedIcon.hidden = true;
             button.ariaLabel = 'Share race';
           }, 1600);
         }
