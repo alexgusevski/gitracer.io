@@ -274,7 +274,8 @@ export function calculateContributionGridLayout(
   let columnsPerBand = weekCount;
   let step = Math.min(8, maxWidth / weekCount, maxHeight / 7);
 
-  for (let candidateBands = 2; candidateBands <= Math.min(10, weekCount); candidateBands += 1) {
+  const maxBands = normalizedDayCount <= 366 ? 1 : Math.min(10, weekCount);
+  for (let candidateBands = 2; candidateBands <= maxBands; candidateBands += 1) {
     const candidateColumns = Math.ceil(weekCount / candidateBands);
     const candidateRows = candidateBands * 7 + (candidateBands - 1) * gapRows;
     const candidateStep = Math.min(8, maxWidth / candidateColumns, maxHeight / candidateRows);

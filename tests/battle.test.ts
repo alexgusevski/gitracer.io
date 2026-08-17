@@ -83,10 +83,10 @@ describe('contribution graph layout', () => {
     expect(layout.height).toBeLessThanOrEqual(68);
   });
 
-  it('wraps year and lifetime histories without stretching their cells', () => {
+  it('keeps annual histories in one GitHub-style strip and wraps only lifetime histories', () => {
     const year = calculateContributionGridLayout(365, 4);
     const lifetime = calculateContributionGridLayout(20 * 365, 1);
-    expect(year.bandCount).toBeGreaterThan(1);
+    expect(year.bandCount).toBe(1);
     expect(lifetime.bandCount).toBeGreaterThan(year.bandCount);
     for (const layout of [year, lifetime]) {
       expect(layout.width).toBeLessThanOrEqual(152);

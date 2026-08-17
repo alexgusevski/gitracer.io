@@ -215,6 +215,7 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
       framePending = false;
       const wallDelta = Math.min(0.1, (now - previousTime) / 1000);
       previousTime = now;
+      const wasFinished = simulation.isFinished;
       if (active && !simulation.isFinished) {
         accumulator = Math.min(0.25, accumulator + wallDelta);
         while (accumulator >= 1 / 60) {
@@ -223,7 +224,7 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
         }
       }
       renderer.draw();
-      paintHud(now);
+      paintHud(now, !wasFinished && simulation.isFinished);
       if (active && !simulation.isFinished) {
         framePending = true;
         requestAnimationFrame(frame);
