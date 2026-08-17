@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   BattleSimulation,
-  MAX_ACTIVE_FIGHTERS,
-  MAX_TIMELINE_FIGHTERS,
+  FULL_DENSITY_CONTRIBUTIONS,
   calculateUnitScale,
   createBattleScenario,
   projectedFighterCount,
+  targetFighterDensity,
   totalContributions,
   type BattleContributor,
   type BattleScenario,
@@ -28,12 +28,20 @@ describe('battle scaling', () => {
     expect(projectedFighterCount(scenario.contributors, 1)).toBe(5);
   });
 
-  it('compresses extreme histories beneath the timeline fighter budget', () => {
+  it('keeps full fighter density for normal-sized battles', () => {
+    expect(targetFighterDensity(FULL_DENSITY_CONTRIBUTIONS)).toBe(FULL_DENSITY_CONTRIBUTIONS);
+    expect(targetFighterDensity(8_000)).toBe(8_000);
+  });
+
+  it('grows extreme armies sublinearly instead of flattening them at a fixed cap', () => {
     const scenario = scenarioWithDailyCounts(Array.from({ length: 8 }, () => Array.from({ length: 120 }, () => 1400)));
     const scale = calculateUnitScale(scenario.contributors);
+    const projected = projectedFighterCount(scenario.contributors, scale);
     expect(scale).toBeGreaterThan(1);
     expect(totalContributions(scenario.contributors)).toBe(1_344_000);
-    expect(projectedFighterCount(scenario.contributors, scale)).toBeLessThanOrEqual(MAX_TIMELINE_FIGHTERS);
+    expect(projected).toBeGreaterThan(40_000);
+    expect(projected).toBeLessThan(60_000);
+    expect(targetFighterDensity(3_600_000)).toBeGreaterThan(targetFighterDensity(300_000));
   });
 });
 
@@ -49,17 +57,6 @@ describe('battle simulation', () => {
     expect(first.getHudState().teams.map(({ alive, pending, kills, lost }) => ({ alive, pending, kills, lost })))
       .toEqual(second.getHudState().teams.map(({ alive, pending, kills, lost }) => ({ alive, pending, kills, lost })));
     expect(first.fighters.slice(0, 12)).toEqual(second.fighters.slice(0, 12));
-  });
-
-  it('never exceeds the active fighter cap under extreme load', () => {
-    const scenario = scenarioWithDailyCounts(Array.from({ length: 8 }, () => Array.from({ length: 30 }, () => 10_000)), 2);
-    const simulation = new BattleSimulation(scenario, 5);
-    let peak = 0;
-    for (let step = 0; step < 360; step += 1) {
-      simulation.step(1 / 60);
-      peak = Math.max(peak, simulation.fighters.length);
-    }
-    expect(peak).toBeLessThanOrEqual(MAX_ACTIVE_FIGHTERS);
   });
 
   it('plays every timeline day before entering overtime', () => {

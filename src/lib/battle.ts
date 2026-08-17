@@ -1,7 +1,6 @@
 export const BATTLE_WIDTH = 1280;
 export const BATTLE_HEIGHT = 720;
-export const MAX_ACTIVE_FIGHTERS = 560;
-export const MAX_TIMELINE_FIGHTERS = 2400;
+export const FULL_DENSITY_CONTRIBUTIONS = 12_000;
 
 export interface BattleDay {
   date: string;
@@ -209,8 +208,14 @@ export function totalContributions(contributors: BattleContributor[]): number {
   return contributors.reduce((total, contributor) => total + contributor.days.reduce((sum, day) => sum + day.count, 0), 0);
 }
 
-export function calculateUnitScale(contributors: BattleContributor[], budget = MAX_TIMELINE_FIGHTERS): number {
-  return Math.max(1, Math.ceil(totalContributions(contributors) / Math.max(1, budget)));
+export function targetFighterDensity(contributionCount: number): number {
+  if (contributionCount <= FULL_DENSITY_CONTRIBUTIONS) return contributionCount;
+  return Math.floor(FULL_DENSITY_CONTRIBUTIONS + Math.sqrt(contributionCount - FULL_DENSITY_CONTRIBUTIONS) * 30);
+}
+
+export function calculateUnitScale(contributors: BattleContributor[]): number {
+  const contributions = totalContributions(contributors);
+  return Math.max(1, Math.ceil(contributions / Math.max(1, targetFighterDensity(contributions))));
 }
 
 export function projectedFighterCount(contributors: BattleContributor[], unitScale: number): number {
@@ -239,11 +244,20 @@ export class BattleSimulation {
   private spawnCursor = 0;
   private winnerTeam: number | null = null;
   private phase: BattleHudState['phase'] = 'running';
+  private readonly spatialCellSize = 52;
+  private readonly spatialColumns = Math.ceil(BATTLE_WIDTH / 52);
+  private readonly spatialRows = Math.ceil(BATTLE_HEIGHT / 52);
+  private readonly spatialBuckets: BattleFighter[][];
+  private spatialUpdateIn = 0;
+  private readonly spawnRate: number;
 
   constructor(scenario: BattleScenario, seed = 1) {
     this.scenario = scenario;
     this.unitScale = calculateUnitScale(scenario.contributors);
     this.random = seededRandom(hashSeed(`${scenario.id}:simulation:${seed}`));
+    const projected = projectedFighterCount(scenario.contributors, this.unitScale);
+    this.spawnRate = Math.max(180, (projected / scenario.durationSeconds) * 1.8);
+    this.spatialBuckets = Array.from({ length: this.spatialColumns * this.spatialRows }, () => []);
     this.bases = this.createBases(scenario.contributors.length);
     this.teams = scenario.contributors.map((contributor, team) => ({
       contributor,
@@ -329,9 +343,9 @@ export class BattleSimulation {
   }
 
   private spawnFighters(delta: number): void {
-    this.spawnCredit = Math.min(150, this.spawnCredit + delta * 150);
+    this.spawnCredit = Math.min(this.spawnRate * 0.5, this.spawnCredit + delta * this.spawnRate);
     let attempts = 0;
-    while (this.spawnCredit >= 1 && this.fighters.length < MAX_ACTIVE_FIGHTERS && attempts < this.teams.length * 3) {
+    while (this.spawnCredit >= 1 && attempts < this.teams.length * 3) {
       const team = this.teams[this.spawnCursor % this.teams.length]!;
       this.spawnCursor += 1;
       attempts += 1;
@@ -363,6 +377,11 @@ export class BattleSimulation {
   }
 
   private updateFighters(delta: number): void {
+    this.spatialUpdateIn -= delta;
+    if (this.spatialUpdateIn <= 0) {
+      this.rebuildSpatialBuckets();
+      this.spatialUpdateIn = 0.12;
+    }
     for (const fighter of this.fighters) {
       if (fighter.hp <= 0) continue;
       fighter.cooldown -= delta;
@@ -371,7 +390,7 @@ export class BattleSimulation {
 
       let target = fighter.targetId === null ? undefined : this.fighterById.get(fighter.targetId);
       if (!target || target.hp <= 0 || target.team === fighter.team || fighter.retargetIn <= 0) {
-        target = this.nearestEnemy(fighter);
+        target = this.nearbyEnemy(fighter);
         fighter.targetId = target?.id ?? null;
         fighter.retargetIn = 0.28 + this.random() * 0.18;
       }
@@ -402,7 +421,8 @@ export class BattleSimulation {
       const fighter = this.fighters[index]!;
       if (fighter.hp > 0) continue;
       this.fighterById.delete(fighter.id);
-      this.fighters.splice(index, 1);
+      const last = this.fighters.pop();
+      if (last && index < this.fighters.length) this.fighters[index] = last;
     }
   }
 
@@ -415,32 +435,56 @@ export class BattleSimulation {
     fighter.y = Math.max(18, Math.min(BATTLE_HEIGHT - 18, fighter.y));
   }
 
-  private nearestEnemy(fighter: BattleFighter): BattleFighter | undefined {
-    let nearest: BattleFighter | undefined;
-    let nearestDistance = Number.POSITIVE_INFINITY;
-    for (const candidate of this.fighters) {
-      if (candidate.team === fighter.team || candidate.hp <= 0) continue;
-      const dx = candidate.x - fighter.x;
-      const dy = candidate.y - fighter.y;
-      const distance = dx * dx + dy * dy;
-      if (distance < nearestDistance) {
-        nearest = candidate;
-        nearestDistance = distance;
+  private rebuildSpatialBuckets(): void {
+    for (const bucket of this.spatialBuckets) bucket.length = 0;
+    for (const fighter of this.fighters) {
+      if (fighter.hp <= 0) continue;
+      const column = Math.max(0, Math.min(this.spatialColumns - 1, Math.floor(fighter.x / this.spatialCellSize)));
+      const row = Math.max(0, Math.min(this.spatialRows - 1, Math.floor(fighter.y / this.spatialCellSize)));
+      this.spatialBuckets[row * this.spatialColumns + column]!.push(fighter);
+    }
+  }
+
+  private nearbyEnemy(fighter: BattleFighter): BattleFighter | undefined {
+    const originColumn = Math.max(0, Math.min(this.spatialColumns - 1, Math.floor(fighter.x / this.spatialCellSize)));
+    const originRow = Math.max(0, Math.min(this.spatialRows - 1, Math.floor(fighter.y / this.spatialCellSize)));
+    const maxRing = Math.max(this.spatialColumns, this.spatialRows);
+
+    for (let ring = 0; ring < maxRing; ring += 1) {
+      const minColumn = Math.max(0, originColumn - ring);
+      const maxColumn = Math.min(this.spatialColumns - 1, originColumn + ring);
+      const minRow = Math.max(0, originRow - ring);
+      const maxRow = Math.min(this.spatialRows - 1, originRow + ring);
+      for (let row = minRow; row <= maxRow; row += 1) {
+        for (let column = minColumn; column <= maxColumn; column += 1) {
+          if (ring > 0 && column > minColumn && column < maxColumn && row > minRow && row < maxRow) continue;
+          const bucket = this.spatialBuckets[row * this.spatialColumns + column]!;
+          if (!bucket.length) continue;
+          const sampleCount = Math.min(28, bucket.length);
+          const start = (fighter.id * 17 + ring * 11) % bucket.length;
+          for (let sample = 0; sample < sampleCount; sample += 1) {
+            const candidate = bucket[(start + sample * 7) % bucket.length]!;
+            if (candidate.team !== fighter.team && candidate.hp > 0) return candidate;
+          }
+        }
       }
     }
-    return nearest;
+    return undefined;
   }
 
   private fire(attacker: BattleFighter, target: BattleFighter): void {
-    this.tracers.push({
-      team: attacker.team,
-      x1: attacker.x,
-      y1: attacker.y,
-      x2: target.x,
-      y2: target.y,
-      ttl: 0.13,
-      maxTtl: 0.13,
-    });
+    const effectSampling = Math.min(1, 2400 / Math.max(1, this.fighters.length));
+    if (this.random() < effectSampling) {
+      this.tracers.push({
+        team: attacker.team,
+        x1: attacker.x,
+        y1: attacker.y,
+        x2: target.x,
+        y2: target.y,
+        ttl: 0.13,
+        maxTtl: 0.13,
+      });
+    }
     target.hp -= 1;
     target.hitFlash = 0.09;
     if (target.hp > 0) return;
@@ -449,14 +493,16 @@ export class BattleSimulation {
     defendingTeam.alive = Math.max(0, defendingTeam.alive - 1);
     defendingTeam.lost += 1;
     attackingTeam.kills += 1;
-    this.bursts.push({
-      team: target.team,
-      x: target.x,
-      y: target.y,
-      ttl: 0.42,
-      maxTtl: 0.42,
-      size: 13 + this.random() * 9,
-    });
+    if (this.random() < effectSampling) {
+      this.bursts.push({
+        team: target.team,
+        x: target.x,
+        y: target.y,
+        ttl: 0.42,
+        maxTtl: 0.42,
+        size: 13 + this.random() * 9,
+      });
+    }
   }
 
   private updateEffects(delta: number): void {
