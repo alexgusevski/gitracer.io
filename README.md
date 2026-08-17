@@ -31,6 +31,10 @@ npm run dev
 
 Set `GITHUB_TOKEN` and a long random `RATE_LIMIT_SECRET` in `.dev.vars`. `POSTHOG_KEY` is optional; analytics remain disabled when it is absent.
 
+### Battle lab
+
+This branch includes a development-only contribution battle prototype. While running `npm run dev`, `/` opens the lab directly (the production homepage is unchanged). The presets use synthetic contribution histories and need no database data; avatar images are fetched through a local-only proxy.
+
 ## Verify
 
 ```bash

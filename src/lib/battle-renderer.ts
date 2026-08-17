@@ -1,6 +1,6 @@
 import { BATTLE_HEIGHT, BATTLE_WIDTH, type BattleSimulation } from './battle';
 
-const INSTANCE_STRIDE = 8;
+const INSTANCE_STRIDE = 9;
 const LINE_STRIDE = 6;
 
 const INSTANCE_VERTEX_SHADER = `#version 300 es
@@ -11,17 +11,43 @@ const INSTANCE_VERTEX_SHADER = `#version 300 es
   layout(location = 3) in vec3 a_color;
   layout(location = 4) in float a_flash;
   layout(location = 5) in float a_size;
+  layout(location = 6) in float a_avatar;
   uniform vec2 u_resolution;
+  out vec2 v_local;
   out vec4 v_color;
+  flat out float v_avatar;
 
   void main() {
-    float sine = sin(a_heading);
-    float cosine = cos(a_heading);
-    vec2 rotated = vec2(a_corner.x * cosine - a_corner.y * sine, a_corner.x * sine + a_corner.y * cosine);
-    vec2 position = a_center + rotated * a_size;
+    vec2 position = a_center + a_corner * a_size;
     vec2 clip = vec2(position.x / u_resolution.x * 2.0 - 1.0, 1.0 - position.y / u_resolution.y * 2.0);
     gl_Position = vec4(clip, 0.0, 1.0);
+    v_local = a_corner;
     v_color = vec4(mix(a_color, vec3(1.0), a_flash), 1.0);
+    v_avatar = a_avatar;
+  }
+`;
+
+const INSTANCE_FRAGMENT_SHADER = `#version 300 es
+  precision mediump float;
+  in vec2 v_local;
+  in vec4 v_color;
+  flat in float v_avatar;
+  uniform sampler2D u_avatar_atlas;
+  uniform float u_avatar_count;
+  uniform float u_avatar_ready;
+  out vec4 out_color;
+
+  void main() {
+    float distance_from_center = length(v_local);
+    float edge = 1.0 - smoothstep(0.88, 1.0, distance_from_center);
+    if (edge <= 0.0) discard;
+    float rim = smoothstep(0.72, 0.92, distance_from_center);
+    vec2 avatar_local = v_local * 0.5 + 0.5;
+    vec2 avatar_uv = vec2((v_avatar + avatar_local.x) / max(1.0, u_avatar_count), avatar_local.y);
+    vec4 portrait = texture(u_avatar_atlas, avatar_uv);
+    vec3 body = mix(v_color.rgb, portrait.rgb, u_avatar_ready * portrait.a);
+    body = mix(body, body * 0.58, rim);
+    out_color = vec4(body, edge * v_color.a);
   }
 `;
 
@@ -89,10 +115,13 @@ export class BattleRenderer {
   private readonly cornerBuffer: WebGLBuffer;
   private readonly instanceBuffer: WebGLBuffer;
   private readonly lineBuffer: WebGLBuffer;
+  private readonly avatarTexture: WebGLTexture;
   private readonly colors: Array<[number, number, number]>;
   private simulation: BattleSimulation;
   private instanceData = new Float32Array(0);
   private lineData = new Float32Array(0);
+  private avatarReady = false;
+  private avatarLoadToken = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement, simulation: BattleSimulation) {
     const gl = canvas.getContext('webgl2', { alpha: true, antialias: false, depth: false, premultipliedAlpha: false });
@@ -100,25 +129,35 @@ export class BattleRenderer {
     this.gl = gl;
     this.simulation = simulation;
     this.colors = simulation.scenario.contributors.map((contributor) => rgb(contributor.color));
-    this.instanceProgram = createProgram(gl, INSTANCE_VERTEX_SHADER, FRAGMENT_SHADER);
+    this.instanceProgram = createProgram(gl, INSTANCE_VERTEX_SHADER, INSTANCE_FRAGMENT_SHADER);
     this.lineProgram = createProgram(gl, LINE_VERTEX_SHADER, FRAGMENT_SHADER);
     const cornerBuffer = gl.createBuffer();
     const instanceBuffer = gl.createBuffer();
     const lineBuffer = gl.createBuffer();
-    if (!cornerBuffer || !instanceBuffer || !lineBuffer) throw new Error('Could not allocate WebGL buffers.');
+    const avatarTexture = gl.createTexture();
+    if (!cornerBuffer || !instanceBuffer || !lineBuffer || !avatarTexture) throw new Error('Could not allocate WebGL buffers.');
     this.cornerBuffer = cornerBuffer;
     this.instanceBuffer = instanceBuffer;
     this.lineBuffer = lineBuffer;
+    this.avatarTexture = avatarTexture;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.cornerBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([1, 0, -0.72, 0.62, -0.45, 0, -0.72, -0.62]), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    gl.bindTexture(gl.TEXTURE_2D, this.avatarTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     this.resize();
+    void this.loadAvatarAtlas();
   }
 
   setSimulation(simulation: BattleSimulation): void {
     this.simulation = simulation;
     this.colors.splice(0, this.colors.length, ...simulation.scenario.contributors.map((contributor) => rgb(contributor.color)));
+    void this.loadAvatarAtlas();
   }
 
   resize(): void {
@@ -154,10 +193,12 @@ export class BattleRenderer {
       this.instanceData[offset + 5] = color[2];
       this.instanceData[offset + 6] = fighter.hitFlash > 0 ? 1 : 0;
       this.instanceData[offset + 7] = fighterSize;
+      this.instanceData[offset + 8] = fighter.team;
       offset += INSTANCE_STRIDE;
     }
     for (const base of this.simulation.bases) {
       const color = this.colors[base.team] ?? [1, 1, 1];
+      const baseAlive = (this.simulation.teams[base.team]?.baseHp ?? 0) > 0;
       this.instanceData[offset] = base.x;
       this.instanceData[offset + 1] = base.y;
       this.instanceData[offset + 2] = base.angle + Math.PI;
@@ -165,12 +206,18 @@ export class BattleRenderer {
       this.instanceData[offset + 4] = color[1];
       this.instanceData[offset + 5] = color[2];
       this.instanceData[offset + 6] = 0;
-      this.instanceData[offset + 7] = 18;
+      this.instanceData[offset + 7] = baseAlive ? 18 : 0;
+      this.instanceData[offset + 8] = base.team;
       offset += INSTANCE_STRIDE;
     }
 
     gl.useProgram(this.instanceProgram);
     gl.uniform2f(gl.getUniformLocation(this.instanceProgram, 'u_resolution'), BATTLE_WIDTH, BATTLE_HEIGHT);
+    gl.uniform1f(gl.getUniformLocation(this.instanceProgram, 'u_avatar_count'), Math.max(1, this.colors.length));
+    gl.uniform1f(gl.getUniformLocation(this.instanceProgram, 'u_avatar_ready'), this.avatarReady ? 1 : 0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.avatarTexture);
+    gl.uniform1i(gl.getUniformLocation(this.instanceProgram, 'u_avatar_atlas'), 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.cornerBuffer);
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
@@ -193,7 +240,53 @@ export class BattleRenderer {
     gl.enableVertexAttribArray(5);
     gl.vertexAttribPointer(5, 1, gl.FLOAT, false, stride, 7 * 4);
     gl.vertexAttribDivisor(5, 1);
+    gl.enableVertexAttribArray(6);
+    gl.vertexAttribPointer(6, 1, gl.FLOAT, false, stride, 8 * 4);
+    gl.vertexAttribDivisor(6, 1);
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, instanceCount);
+  }
+
+  private async loadAvatarAtlas(): Promise<void> {
+    const token = ++this.avatarLoadToken;
+    this.avatarReady = false;
+    const contributors = this.simulation.scenario.contributors;
+    const images = await Promise.all(contributors.map((contributor) => new Promise<HTMLImageElement | null>((resolve) => {
+      const image = new Image();
+      const timeout = window.setTimeout(() => resolve(null), 4000);
+      image.crossOrigin = 'anonymous';
+      image.referrerPolicy = 'no-referrer';
+      image.onload = () => {
+        window.clearTimeout(timeout);
+        resolve(image);
+      };
+      image.onerror = () => {
+        window.clearTimeout(timeout);
+        resolve(null);
+      };
+      image.src = contributor.avatarUrl;
+    })));
+    if (token !== this.avatarLoadToken) return;
+
+    const cellSize = 16;
+    const atlas = document.createElement('canvas');
+    atlas.width = Math.max(1, contributors.length) * cellSize;
+    atlas.height = cellSize;
+    const context = atlas.getContext('2d');
+    if (!context) return;
+    context.imageSmoothingEnabled = false;
+    contributors.forEach((contributor, index) => {
+      context.fillStyle = contributor.color;
+      context.fillRect(index * cellSize, 0, cellSize, cellSize);
+      const image = images[index];
+      if (image) context.drawImage(image, index * cellSize, 0, cellSize, cellSize);
+    });
+
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, this.avatarTexture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    this.avatarReady = true;
   }
 
   private drawLines(): void {

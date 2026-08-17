@@ -15,6 +15,7 @@ function scenarioWithDailyCounts(counts: number[][], durationSeconds = 1): Battl
   const contributors: BattleContributor[] = counts.map((days, team) => ({
     id: `team-${team}`,
     login: `fighter-${team}`,
+    avatarUrl: `https://example.com/fighter-${team}.png`,
     color: ['#f00', '#0f0', '#00f'][team] ?? '#fff',
     days: days.map((count, day) => ({ date: `2026-01-${String(day + 1).padStart(2, '0')}`, count })),
   }));
@@ -67,5 +68,14 @@ describe('battle simulation', () => {
     expect(state.phase).toBe('overtime');
     expect(state.dayIndex).toBe(2);
     expect(state.teams.map((team) => team.contributionsSeen)).toEqual([6, 6]);
+  });
+
+  it('stops reinforcements after a contributor base reaches zero HP', () => {
+    const scenario = scenarioWithDailyCounts([[100, 100], [1, 1], [1, 1]], 1);
+    const simulation = new BattleSimulation(scenario, 3);
+    simulation.teams[0]!.baseHp = 0;
+    simulation.teams[0]!.pending = 0;
+    for (let step = 0; step < 40; step += 1) simulation.step(1 / 60);
+    expect(simulation.teams[0]).toMatchObject({ baseHp: 0, pending: 0, deployed: 0, contributionsSeen: 200 });
   });
 });

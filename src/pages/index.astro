@@ -7,6 +7,8 @@ import { getLatestRaces, getTopContributors } from '../lib/db';
 import { runtimeEnv } from '../lib/server';
 import type { LatestRace, TopContributor } from '../lib/types';
 
+if (import.meta.env.DEV) return Astro.redirect('/battle-lab');
+
 let races: LatestRace[] = [];
 let contributors: TopContributor[] = [];
 const db = runtimeEnv().DB;

@@ -10,6 +10,7 @@ export interface BattleDay {
 export interface BattleContributor {
   id: string;
   login: string;
+  avatarUrl: string;
   color: string;
   days: BattleDay[];
 }
@@ -44,6 +45,7 @@ export interface BattleFighter {
   hp: number;
   cooldown: number;
   targetId: number | null;
+  baseTargetTeam: number | null;
   retargetIn: number;
   hitFlash: number;
 }
@@ -77,6 +79,7 @@ export interface BattleTeamState {
   deployed: number;
   kills: number;
   lost: number;
+  baseHp: number;
 }
 
 export interface BattleHudState {
@@ -103,7 +106,7 @@ interface PresetDefinition extends BattlePreset {
 }
 
 const COLORS = ['#7c6cff', '#42d6b4', '#ffb347', '#ff5f73', '#58b9ff', '#dc71ff', '#d6e74c', '#ff8c42'];
-const LOGINS = ['byteknight', 'mergewitch', 'stacksmith', 'patchpilot', 'branchbard', 'cachequeen', 'lintlord', 'shipshape'];
+const LOGINS = ['steipete', 'sindresorhus', 'torvalds', 'antfu', 'yyx990803', 'gaearon', 'addyosmani', 'kentcdodds'];
 
 const PRESET_DEFINITIONS: PresetDefinition[] = [
   {
@@ -190,6 +193,7 @@ export function createBattleScenario(presetId = 'release', seed = 1): BattleScen
     return {
       id: `team-${contributorIndex + 1}`,
       login: LOGINS[contributorIndex]!,
+      avatarUrl: `/battle-avatar/${encodeURIComponent(LOGINS[contributorIndex]!)}`,
       color: COLORS[contributorIndex]!,
       days,
     };
@@ -243,6 +247,7 @@ export class BattleSimulation {
   private spawnCredit = 0;
   private spawnCursor = 0;
   private winnerTeam: number | null = null;
+  private lastBaseAttackerTeam: number | null = null;
   private phase: BattleHudState['phase'] = 'running';
   private readonly spatialCellSize = 52;
   private readonly spatialColumns = Math.ceil(BATTLE_WIDTH / 52);
@@ -269,6 +274,7 @@ export class BattleSimulation {
       deployed: 0,
       kills: 0,
       lost: 0,
+      baseHp: 100,
     }));
     this.processTimelineThrough(0);
   }
@@ -334,6 +340,7 @@ export class BattleSimulation {
       for (const team of this.teams) {
         const count = team.contributor.days[this.processedDay]?.count ?? 0;
         team.contributionsSeen += count;
+        if (team.baseHp <= 0) continue;
         team.remainder += count;
         const fighters = Math.floor(team.remainder / this.unitScale);
         team.remainder -= fighters * this.unitScale;
@@ -349,7 +356,7 @@ export class BattleSimulation {
       const team = this.teams[this.spawnCursor % this.teams.length]!;
       this.spawnCursor += 1;
       attempts += 1;
-      if (team.pending <= 0) continue;
+      if (team.pending <= 0 || team.baseHp <= 0) continue;
       this.spawnCredit -= 1;
       team.pending -= 1;
       team.alive += 1;
@@ -366,6 +373,7 @@ export class BattleSimulation {
         hp: 3,
         cooldown: this.random() * 0.7,
         targetId: null,
+        baseTargetTeam: null,
         retargetIn: this.random() * 0.2,
         hitFlash: 0,
       };
@@ -396,10 +404,22 @@ export class BattleSimulation {
       }
 
       if (!target) {
-        const base = this.teams[fighter.team]!.base;
-        const orbit = base.angle + Math.PI + Math.sin(fighter.id * 1.7) * 0.42;
-        fighter.heading = orbit;
-        this.moveFighter(fighter, orbit, delta * 0.48);
+        let baseTarget = fighter.baseTargetTeam === null ? undefined : this.teams[fighter.baseTargetTeam];
+        if (!baseTarget || baseTarget.baseHp <= 0 || baseTarget.base.team === fighter.team) {
+          baseTarget = this.nearestEnemyBase(fighter);
+          fighter.baseTargetTeam = baseTarget?.base.team ?? null;
+        }
+        if (!baseTarget) continue;
+        const dx = baseTarget.base.x - fighter.x;
+        const dy = baseTarget.base.y - fighter.y;
+        const distanceSquared = dx * dx + dy * dy;
+        const angle = Math.atan2(dy, dx);
+        fighter.heading = angle;
+        if (distanceSquared > 72 * 72) this.moveFighter(fighter, angle, delta);
+        else if (fighter.cooldown <= 0) {
+          fighter.cooldown = 0.62;
+          this.fireAtBase(fighter, baseTarget);
+        }
         continue;
       }
 
@@ -448,7 +468,7 @@ export class BattleSimulation {
   private nearbyEnemy(fighter: BattleFighter): BattleFighter | undefined {
     const originColumn = Math.max(0, Math.min(this.spatialColumns - 1, Math.floor(fighter.x / this.spatialCellSize)));
     const originRow = Math.max(0, Math.min(this.spatialRows - 1, Math.floor(fighter.y / this.spatialCellSize)));
-    const maxRing = Math.max(this.spatialColumns, this.spatialRows);
+    const maxRing = 5;
 
     for (let ring = 0; ring < maxRing; ring += 1) {
       const minColumn = Math.max(0, originColumn - ring);
@@ -470,6 +490,22 @@ export class BattleSimulation {
       }
     }
     return undefined;
+  }
+
+  private nearestEnemyBase(fighter: BattleFighter): BattleTeamState | undefined {
+    let nearest: BattleTeamState | undefined;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (const team of this.teams) {
+      if (team.base.team === fighter.team || team.baseHp <= 0) continue;
+      const dx = team.base.x - fighter.x;
+      const dy = team.base.y - fighter.y;
+      const distance = dx * dx + dy * dy;
+      if (distance < nearestDistance) {
+        nearest = team;
+        nearestDistance = distance;
+      }
+    }
+    return nearest;
   }
 
   private fire(attacker: BattleFighter, target: BattleFighter): void {
@@ -505,6 +541,42 @@ export class BattleSimulation {
     }
   }
 
+  private fireAtBase(attacker: BattleFighter, target: BattleTeamState): void {
+    const effectSampling = Math.min(1, 2400 / Math.max(1, this.fighters.length));
+    if (this.random() < effectSampling) {
+      this.tracers.push({
+        team: attacker.team,
+        x1: attacker.x,
+        y1: attacker.y,
+        x2: target.base.x,
+        y2: target.base.y,
+        ttl: 0.13,
+        maxTtl: 0.13,
+      });
+    }
+    target.baseHp = Math.max(0, target.baseHp - 1);
+    this.lastBaseAttackerTeam = attacker.team;
+    if (target.baseHp > 0) return;
+    target.pending = 0;
+    target.remainder = 0;
+    let eliminatedFighters = 0;
+    for (const fighter of this.fighters) {
+      if (fighter.team !== target.base.team || fighter.hp <= 0) continue;
+      fighter.hp = 0;
+      eliminatedFighters += 1;
+    }
+    target.alive = 0;
+    target.lost += eliminatedFighters;
+    this.bursts.push({
+      team: target.base.team,
+      x: target.base.x,
+      y: target.base.y,
+      ttl: 0.8,
+      maxTtl: 0.8,
+      size: 38,
+    });
+  }
+
   private updateEffects(delta: number): void {
     for (let index = this.tracers.length - 1; index >= 0; index -= 1) {
       const tracer = this.tracers[index]!;
@@ -519,12 +591,19 @@ export class BattleSimulation {
   }
 
   private checkForFinish(): void {
+    const survivingBases = this.teams.filter((team) => team.baseHp > 0);
+    if (this.teams.length > 1 && survivingBases.length <= 1) {
+      this.winnerTeam = survivingBases[0]?.base.team ?? this.lastBaseAttackerTeam;
+      this.phase = 'finished';
+      return;
+    }
     if (this.phase !== 'overtime') return;
-    const contenders = this.teams.filter((team) => team.alive + team.pending > 0);
-    if (this.overtime < 10 && contenders.length > 1) return;
+    const combatantsRemain = this.fighters.length > 0 || this.teams.some((team) => team.pending > 0);
+    if (combatantsRemain) return;
     const ranked = [...this.teams].sort((a, b) => {
       const strength = (b.alive + b.pending) - (a.alive + a.pending);
       if (strength) return strength;
+      if (b.baseHp !== a.baseHp) return b.baseHp - a.baseHp;
       if (b.kills !== a.kills) return b.kills - a.kills;
       return b.contributionsSeen - a.contributionsSeen;
     });

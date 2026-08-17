@@ -1,0 +1,26 @@
+---
+import BattleGame from '../components/BattleGame.astro';
+import '../styles/global.css';
+
+if (!import.meta.env.DEV) return Astro.redirect('/404');
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#ffffff" />
+    <title>Commit Battle Lab · GitRacer</title>
+    <script is:inline>
+      (() => {
+        const saved = localStorage.getItem('gitracer-theme');
+        if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved;
+      })();
+    </script>
+  </head>
+  <body>
+    <BattleGame />
+  </body>
+</html>
