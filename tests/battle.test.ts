@@ -4,12 +4,14 @@ import {
   FULL_DENSITY_CONTRIBUTIONS,
   calculateUnitScale,
   createBattleScenario,
+  createBattleScenarioFromRace,
   projectedFighterCount,
   targetFighterDensity,
   totalContributions,
   type BattleContributor,
   type BattleScenario,
 } from '../src/lib/battle';
+import type { RaceData } from '../src/lib/types';
 
 function scenarioWithDailyCounts(counts: number[][], durationSeconds = 1): BattleScenario {
   const contributors: BattleContributor[] = counts.map((days, team) => ({
@@ -46,6 +48,30 @@ describe('battle scaling', () => {
   });
 });
 
+describe('race battle scenarios', () => {
+  it('preserves every selected-range day and GitHub contribution level', () => {
+    const days = Array.from({ length: 30 }, (_, index) => ({
+      date: `2026-01-${String(index + 1).padStart(2, '0')}`,
+      count: index % 5,
+      level: (['NONE', 'FIRST_QUARTILE', 'SECOND_QUARTILE', 'THIRD_QUARTILE', 'FOURTH_QUARTILE'] as const)[index % 5]!,
+    }));
+    const race = {
+      slug: 'one+two',
+      range: { key: 'last30', label: 'Last 30 days', start: days[0]!.date, end: days.at(-1)!.date, years: [2026] },
+      racers: [{ githubId: '1', login: 'one', displayName: null, avatarUrl: '/avatar/one', profileUrl: '', color: '#f00', total: 60, activeDays: 24, longestStreak: 4, days, fetchedAt: null, canRefresh: false }],
+      availableYears: [2026],
+      leader: null,
+      generatedAt: '2026-01-30T00:00:00Z',
+      canRefresh: false,
+    } satisfies RaceData;
+
+    const scenario = createBattleScenarioFromRace(race);
+    expect(scenario.durationSeconds).toBe(30);
+    expect(scenario.contributors[0]?.days).toEqual(days);
+    expect(scenario.description).toContain('30 days');
+  });
+});
+
 describe('battle simulation', () => {
   it('is deterministic for the same scenario and seed', () => {
     const scenario = createBattleScenario('garage', 12);
@@ -77,5 +103,11 @@ describe('battle simulation', () => {
     simulation.teams[0]!.pending = 0;
     for (let step = 0; step < 40; step += 1) simulation.step(1 / 60);
     expect(simulation.teams[0]).toMatchObject({ baseHp: 0, pending: 0, deployed: 0, contributionsSeen: 200 });
+  });
+
+  it('finishes a one-contributor battle after its timeline completes', () => {
+    const simulation = new BattleSimulation(scenarioWithDailyCounts([[3]], 0.1), 4);
+    for (let step = 0; step < 12; step += 1) simulation.step(1 / 60);
+    expect(simulation.getHudState()).toMatchObject({ phase: 'finished', winnerTeam: 0, dayIndex: 0 });
   });
 });

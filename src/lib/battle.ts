@@ -1,3 +1,5 @@
+import type { ContributionLevel, RaceData } from './types';
+
 export const BATTLE_WIDTH = 1280;
 export const BATTLE_HEIGHT = 720;
 export const FULL_DENSITY_CONTRIBUTIONS = 12_000;
@@ -5,6 +7,7 @@ export const FULL_DENSITY_CONTRIBUTIONS = 12_000;
 export interface BattleDay {
   date: string;
   count: number;
+  level?: ContributionLevel;
 }
 
 export interface BattleContributor {
@@ -205,6 +208,22 @@ export function createBattleScenario(presetId = 'release', seed = 1): BattleScen
     description: preset.description,
     durationSeconds: 30,
     contributors,
+  };
+}
+
+export function createBattleScenarioFromRace(data: RaceData): BattleScenario {
+  return {
+    id: `${data.slug}:${data.range.key}`,
+    label: data.range.label,
+    description: `${data.racers.length} contributor${data.racers.length === 1 ? '' : 's'} · ${data.racers[0]?.days.length ?? 0} days`,
+    durationSeconds: 30,
+    contributors: data.racers.map((racer) => ({
+      id: racer.githubId,
+      login: racer.login,
+      avatarUrl: racer.avatarUrl,
+      color: racer.color,
+      days: racer.days.map(({ date, count, level }) => ({ date, count, level })),
+    })),
   };
 }
 
@@ -591,6 +610,11 @@ export class BattleSimulation {
   }
 
   private checkForFinish(): void {
+    if (this.teams.length === 1 && this.phase === 'overtime') {
+      this.winnerTeam = 0;
+      this.phase = 'finished';
+      return;
+    }
     const survivingBases = this.teams.filter((team) => team.baseHp > 0);
     if (this.teams.length > 1 && survivingBases.length <= 1) {
       this.winnerTeam = survivingBases[0]?.base.team ?? this.lastBaseAttackerTeam;
