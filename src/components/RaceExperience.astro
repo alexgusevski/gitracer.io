@@ -1,5 +1,6 @@
 ---
 import type { RaceData } from '../lib/types';
+import BattleGame from './BattleGame.astro';
 
 interface Props { data: RaceData }
 const { data } = Astro.props;
@@ -22,8 +23,13 @@ const leaderText = data.racers.length === 1
       <p>Every racer starts at zero on <span data-range-start>{data.range.start}</span>. All public GitHub contribution types count.</p>
     </div>
     <div class="race-actions">
-      <button class="button button--quiet" type="button" data-share-race><span aria-hidden="true">↗</span> share race</button>
-      <button class="button button--quiet" type="button" data-refresh-race hidden={!data.canRefresh}><span aria-hidden="true">↻</span> refresh</button>
+      <button class="button button--quiet race-mode-toggle" type="button" data-mode-toggle aria-pressed="false">
+        <span class="race-mode-icon" data-battle-mode-icon aria-hidden="true">⚔</span>
+        <span class="race-mode-icon" data-graph-mode-icon aria-hidden="true" hidden><svg viewBox="0 0 20 20"><path d="M2.5 15.5 6.8 11l3 2.4 6-7"/><path d="M14 6.4h2.2v2.3"/></svg></span>
+        <span data-mode-label>battle mode</span>
+      </button>
+      <button class="button button--quiet race-action-icon" type="button" data-share-race aria-label="Share race" title="Share race"><span data-action-icon aria-hidden="true">↗</span></button>
+      <button class="button button--quiet race-action-icon" type="button" data-refresh-race aria-label="Refresh race data" title="Refresh race data" hidden={!data.canRefresh}><span data-action-icon aria-hidden="true">↻</span></button>
     </div>
   </div>
 
@@ -40,13 +46,16 @@ const leaderText = data.racers.length === 1
     <div class="race-freshness"><span class="cache-light"></span><span>data fetched <time datetime={fetchedAt} data-fetched-time>{fetchedAt}</time></span></div>
   </div>
 
-  <div class="chart-shell" data-chart-shell aria-label={`Cumulative GitHub contributions for ${data.racers.map((racer) => racer.login).join(', ')}`}>
-    <div class="chart-y-label">cumulative contributions</div>
-    <svg class="race-chart" data-race-chart viewBox="0 0 1000 440" role="img"></svg>
-    <span class="chart-watermark" aria-hidden="true">gitracer.io</span>
-    <div class="chart-tooltip" data-chart-tooltip hidden></div>
-    <div class="chart-loading" data-chart-loading hidden><span></span> fetching public contributions…</div>
+  <div data-graph-panel>
+    <div class="chart-shell" data-chart-shell aria-label={`Cumulative GitHub contributions for ${data.racers.map((racer) => racer.login).join(', ')}`}>
+      <div class="chart-y-label">cumulative contributions</div>
+      <svg class="race-chart" data-race-chart viewBox="0 0 1000 440" role="img"></svg>
+      <span class="chart-watermark" aria-hidden="true">gitracer.io</span>
+      <div class="chart-tooltip" data-chart-tooltip hidden></div>
+      <div class="chart-loading" data-chart-loading hidden><span></span> fetching public contributions…</div>
+    </div>
   </div>
+  <div data-battle-panel hidden><BattleGame data={data} embedded /></div>
   <p class="chart-error" data-chart-error role="alert"></p>
 
   <div class="racer-grid" data-racer-grid>
@@ -84,7 +93,11 @@ const leaderText = data.racers.length === 1
     const select = root.querySelector('[data-range-select]');
     const loading = root.querySelector('[data-chart-loading]');
     const errorBox = root.querySelector('[data-chart-error]');
+    const graphPanel = root.querySelector('[data-graph-panel]');
+    const battlePanel = root.querySelector('[data-battle-panel]');
+    const modeButton = root.querySelector('[data-mode-toggle]');
     let state = JSON.parse(json?.textContent || '{}');
+    let viewMode = 'graph';
     let chartRenderId = 0;
     const chartInstanceId = Math.random().toString(36).slice(2);
     if (!(svg instanceof SVGElement) || !(shell instanceof HTMLElement) || !(tooltip instanceof HTMLElement)) return;
@@ -198,6 +211,7 @@ const leaderText = data.racers.length === 1
         state = next;
         renderChart();
         updateCopy();
+        window.dispatchEvent(new CustomEvent('gitracer:battle-data', { detail: { slug: root.dataset.slug, data: state } }));
         history.replaceState(null, '', `${location.pathname}?range=${encodeURIComponent(range)}`);
         window.posthog?.capture?.(refresh ? 'race_refreshed' : 'race_range_changed', { range, racer_count: state.racers.length });
       } catch (error) {
@@ -226,12 +240,34 @@ const leaderText = data.racers.length === 1
       svg.querySelector('[data-crosshair]')?.setAttribute('hidden', '');
     });
     if (select instanceof HTMLSelectElement) select.addEventListener('change', () => fetchRace(select.value));
+    modeButton?.addEventListener('click', () => {
+      viewMode = viewMode === 'graph' ? 'battle' : 'graph';
+      if (graphPanel instanceof HTMLElement) graphPanel.hidden = viewMode !== 'graph';
+      if (battlePanel instanceof HTMLElement) battlePanel.hidden = viewMode !== 'battle';
+      const battleIcon = modeButton.querySelector('[data-battle-mode-icon]');
+      const graphIcon = modeButton.querySelector('[data-graph-mode-icon]');
+      const label = modeButton.querySelector('[data-mode-label]');
+      if (battleIcon instanceof HTMLElement) battleIcon.hidden = viewMode === 'battle';
+      if (graphIcon instanceof HTMLElement) graphIcon.hidden = viewMode !== 'battle';
+      if (label) label.textContent = viewMode === 'battle' ? 'graph mode' : 'battle mode';
+      modeButton.setAttribute('aria-pressed', String(viewMode === 'battle'));
+      if (viewMode === 'battle') window.dispatchEvent(new CustomEvent('gitracer:battle-activate', { detail: { slug: root.dataset.slug, data: state } }));
+    });
     root.querySelector('[data-refresh-race]')?.addEventListener('click', () => fetchRace(state.range.key, true));
     root.querySelector('[data-share-race]')?.addEventListener('click', async (event) => {
       const button = event.currentTarget;
       try {
         if (navigator.share) await navigator.share({ title: document.title, text: root.querySelector('[data-leader-copy]')?.textContent || '', url: location.href });
-        else { await navigator.clipboard.writeText(location.href); if (button instanceof HTMLElement) button.textContent = '✓ link copied'; }
+        else if (button instanceof HTMLButtonElement) {
+          await navigator.clipboard.writeText(location.href);
+          const icon = button.querySelector('[data-action-icon]');
+          if (icon) icon.textContent = '✓';
+          button.ariaLabel = 'Race link copied';
+          window.setTimeout(() => {
+            if (icon) icon.textContent = '↗';
+            button.ariaLabel = 'Share race';
+          }, 1600);
+        }
         window.posthog?.capture?.('race_shared', { racer_count: state.racers.length, range: state.range.key });
       } catch {}
     });
