@@ -415,7 +415,7 @@ export class BattleSimulation {
         const distanceSquared = dx * dx + dy * dy;
         const angle = Math.atan2(dy, dx);
         fighter.heading = angle;
-        if (distanceSquared > 72 * 72) this.moveFighter(fighter, angle, delta);
+        if (distanceSquared > 94 * 94) this.moveFighter(fighter, angle, delta);
         else if (fighter.cooldown <= 0) {
           fighter.cooldown = 0.62;
           this.fireAtBase(fighter, baseTarget);
@@ -428,7 +428,7 @@ export class BattleSimulation {
       const distanceSquared = dx * dx + dy * dy;
       const angle = Math.atan2(dy, dx);
       fighter.heading = angle;
-      if (distanceSquared > 82 * 82) {
+      if (distanceSquared > 102 * 102) {
         const pace = distanceSquared < 150 * 150 ? 0.68 : 1;
         this.moveFighter(fighter, angle, delta * pace);
       } else if (fighter.cooldown <= 0) {

@@ -178,10 +178,10 @@ export class BattleRenderer {
   private drawInstances(): void {
     const gl = this.gl;
     const fighterCount = this.simulation.fighters.length;
-    const instanceCount = fighterCount + this.simulation.bases.length;
+    const instanceCount = fighterCount;
     const requiredLength = instanceCount * INSTANCE_STRIDE;
     if (this.instanceData.length < requiredLength) this.instanceData = new Float32Array(Math.ceil(requiredLength * 1.25));
-    const fighterSize = fighterCount > 45_000 ? 2.2 : fighterCount > 20_000 ? 2.8 : fighterCount > 8_000 ? 3.5 : 5;
+    const fighterSize = fighterCount > 45_000 ? 2.8 : fighterCount > 20_000 ? 3.4 : fighterCount > 8_000 ? 4.2 : 6;
     let offset = 0;
     for (const fighter of this.simulation.fighters) {
       const color = this.colors[fighter.team] ?? [1, 1, 1];
@@ -196,21 +196,6 @@ export class BattleRenderer {
       this.instanceData[offset + 8] = fighter.team;
       offset += INSTANCE_STRIDE;
     }
-    for (const base of this.simulation.bases) {
-      const color = this.colors[base.team] ?? [1, 1, 1];
-      const baseAlive = (this.simulation.teams[base.team]?.baseHp ?? 0) > 0;
-      this.instanceData[offset] = base.x;
-      this.instanceData[offset + 1] = base.y;
-      this.instanceData[offset + 2] = base.angle + Math.PI;
-      this.instanceData[offset + 3] = color[0];
-      this.instanceData[offset + 4] = color[1];
-      this.instanceData[offset + 5] = color[2];
-      this.instanceData[offset + 6] = 0;
-      this.instanceData[offset + 7] = baseAlive ? 18 : 0;
-      this.instanceData[offset + 8] = base.team;
-      offset += INSTANCE_STRIDE;
-    }
-
     gl.useProgram(this.instanceProgram);
     gl.uniform2f(gl.getUniformLocation(this.instanceProgram, 'u_resolution'), BATTLE_WIDTH, BATTLE_HEIGHT);
     gl.uniform1f(gl.getUniformLocation(this.instanceProgram, 'u_avatar_count'), Math.max(1, this.colors.length));

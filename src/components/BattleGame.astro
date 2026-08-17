@@ -41,7 +41,6 @@ import { BATTLE_PRESETS } from '../lib/battle';
         <div class="arena-labels" aria-hidden="true"><span>battle simulation</span><span data-phase>WAITING</span></div>
         <canvas data-battle-canvas width="1280" height="720" role="img" aria-label="Top-down contributor battle simulation"></canvas>
         <div class="base-hud-layer" data-base-hud-layer aria-hidden="true"></div>
-        <div class="merge-zone" aria-hidden="true">MERGE<br />ZONE</div>
         <div class="start-card" data-start-card>
           <span>READY</span>
           <strong>Daily commits are loaded.</strong>
@@ -175,15 +174,15 @@ import { BATTLE_PRESETS } from '../lib/battle';
         avatar.src = team.contributor.avatarUrl;
         avatar.alt = '';
         avatar.referrerPolicy = 'no-referrer';
-        const skull = document.createElement('i');
-        skull.textContent = '💀';
+        const deathMarker = document.createElement('i');
+        deathMarker.textContent = '🕊️';
         profile.appendChild(avatar);
-        profile.appendChild(skull);
+        profile.appendChild(deathMarker);
         const graph = document.createElement('canvas');
         graph.className = 'base-history';
         graph.dataset.baseHistory = '';
-        graph.width = 82;
-        graph.height = 26;
+        graph.width = 106;
+        graph.height = 38;
         const hp = document.createElement('div');
         hp.className = 'base-hp';
         const hpFill = document.createElement('span');
@@ -218,15 +217,15 @@ import { BATTLE_PRESETS } from '../lib/battle';
         const counts = team.contributor.days.map((day) => day.count);
         const peak = Math.max(1, ...counts);
         const columns = Math.max(1, Math.ceil(counts.length / 7));
-        const stepX = Math.min(4, 78 / columns);
-        const cellWidth = Math.max(0.8, stepX - 0.55);
+        const stepX = Math.min(5, 102 / columns);
+        const cellWidth = Math.max(1, stepX - 0.65);
         context.clearRect(0, 0, graph.width, graph.height);
         counts.forEach((count, day) => {
           const column = Math.floor(day / 7);
           const row = day % 7;
           context.globalAlpha = day <= state.dayIndex ? 0.25 + (count / peak) * 0.75 : 0.38;
           context.fillStyle = day <= state.dayIndex ? team.contributor.color : emptyColor;
-          context.fillRect(2 + column * stepX, 2 + row * 3.15, cellWidth, 2.55);
+          context.fillRect(2 + column * stepX, 3 + row * 4.55, cellWidth, 3.75);
         });
         context.globalAlpha = 1;
       });
@@ -391,21 +390,19 @@ import { BATTLE_PRESETS } from '../lib/battle';
   .arena-labels span:last-child { color: var(--green); }
   canvas { position: relative; z-index: 1; width: 100%; height: auto; display: block; aspect-ratio: 16 / 9; background: var(--paper-2); }
   .base-hud-layer { position: absolute; z-index: 2; top: 30px; right: 0; left: 0; aspect-ratio: 16 / 9; pointer-events: none; }
-  .base-hud-layer :global(.base-hud) { position: absolute; width: 88px; padding: 4px; display: grid; grid-template-columns: 30px 1fr; grid-template-rows: auto 26px 7px auto; align-items: center; gap: 1px 4px; border: 1px solid var(--line-strong); border-radius: 5px; background: color-mix(in srgb, var(--panel) 93%, transparent); box-shadow: 3px 3px 0 color-mix(in srgb, var(--ink) 10%, transparent); transform: translate(-50%, -50%); }
-  .base-hud-layer :global(.base-hud > b) { grid-column: 1 / -1; overflow: hidden; color: var(--ink); font-size: 6px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
-  .base-hud-layer :global(.base-profile) { grid-row: 2 / 4; width: 28px; height: 28px; display: grid; place-items: center; border: 2px solid var(--team); border-radius: 50%; overflow: hidden; background: var(--panel); }
+  .base-hud-layer :global(.base-hud) { position: absolute; width: 160px; display: grid; grid-template-columns: 46px 106px; grid-template-rows: auto 46px 8px auto; align-items: center; gap: 3px 8px; transform: translate(-23px, -50%); }
+  .base-hud-layer :global(.base-hud > b) { grid-column: 1 / -1; overflow: hidden; color: var(--ink); font-size: 7px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+  .base-hud-layer :global(.base-profile) { grid-column: 1; grid-row: 2; width: 44px; height: 44px; display: grid; place-items: center; border: 2px solid var(--team); border-radius: 50%; overflow: hidden; background: var(--panel); box-shadow: 2px 2px 0 color-mix(in srgb, var(--ink) 14%, transparent); }
   .base-hud-layer :global(.base-profile img) { grid-area: 1 / 1; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
-  .base-hud-layer :global(.base-profile i) { grid-area: 1 / 1; display: none; font-size: 18px; font-style: normal; line-height: 1; }
-  .base-hud-layer :global(.base-history) { grid-column: 2; grid-row: 2; width: 48px; height: 26px; background: transparent; aspect-ratio: auto; }
-  .base-hud-layer :global(.base-hp) { position: relative; grid-column: 2; grid-row: 3; height: 7px; overflow: hidden; border: 1px solid var(--ink); border-radius: 0; background: #d73535; }
+  .base-hud-layer :global(.base-profile i) { grid-area: 1 / 1; display: none; font-size: 27px; font-style: normal; line-height: 1; }
+  .base-hud-layer :global(.base-history) { grid-column: 2; grid-row: 2; width: 106px; height: 38px; background: transparent; aspect-ratio: auto; }
+  .base-hud-layer :global(.base-hp) { position: relative; grid-column: 1 / -1; grid-row: 3; width: 126px; height: 8px; justify-self: center; overflow: hidden; background: #d73535; }
   .base-hud-layer :global(.base-hp span) { display: block; width: 100%; height: 100%; background: #9be332; transition: width .12s linear; }
-  .base-hud-layer :global(.base-hp::after) { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 7px, rgba(0, 0, 0, .28) 7px 8px); }
-  .base-hud-layer :global(.base-hud > small) { grid-column: 2; grid-row: 4; color: var(--muted); font-size: 6px; line-height: 1; text-align: right; }
+  .base-hud-layer :global(.base-hud > small) { grid-column: 1 / -1; grid-row: 4; color: var(--muted); font-size: 6px; line-height: 1; text-align: center; }
   .base-hud-layer :global(.base-hud.is-dead) { filter: grayscale(.75); }
   .base-hud-layer :global(.base-hud.is-dead .base-profile img) { display: none; }
   .base-hud-layer :global(.base-hud.is-dead .base-profile i) { display: block; }
   .base-hud-layer :global(.base-hud.is-dead .base-history) { opacity: .32; }
-  .merge-zone { position: absolute; z-index: 2; top: calc(50% + 15px); left: 50%; width: auto; height: auto; padding: 5px 8px; border: 1px dashed var(--line-strong); border-radius: 4px; background: color-mix(in srgb, var(--panel) 82%, transparent); color: var(--muted); font-size: 7px; line-height: 1.35; text-align: center; transform: translate(-50%, -50%); pointer-events: none; }
   .start-card, .winner-card { position: absolute; z-index: 3; top: 50%; left: 50%; width: min(320px, calc(100% - 40px)); padding: 18px; border: 1px solid var(--line-strong); border-top: 3px solid var(--green); border-radius: 8px; background: color-mix(in srgb, var(--panel) 94%, transparent); box-shadow: var(--shadow); transform: translate(-50%, -45%); text-align: center; backdrop-filter: blur(4px); }
   .start-card span, .winner-card span { display: block; color: var(--green); font-size: 8px; letter-spacing: .15em; }
   .start-card strong, .winner-card strong { display: block; margin-top: 6px; font-family: var(--display); font-size: 20px; }
@@ -468,7 +465,7 @@ import { BATTLE_PRESETS } from '../lib/battle';
     .battle-readout > div:nth-child(3) { border-right: 1px solid var(--line); }
     .battle-layout { overflow: hidden; }
     h1 { font-size: 30px; }
-    .base-hud-layer :global(.base-hud) { transform: translate(-50%, -50%) scale(.68); }
+    .base-hud-layer :global(.base-hud) { transform: translate(-23px, -50%) scale(.68); transform-origin: 23px center; }
     .team-list { grid-template-columns: 1fr; }
     .team-list :global(.team-row:nth-child(odd)) { border-right: 0; }
     .playback-panel { flex-wrap: wrap; }
