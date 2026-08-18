@@ -1,0 +1,201 @@
+---
+import type { LatestRace, RangeDefinition, TopContributor, TrendingRace } from '../lib/types';
+
+interface Props {
+  races: LatestRace[];
+  trendingRaces: TrendingRace[];
+  contributors: TopContributor[];
+  years: number[];
+  range: RangeDefinition;
+}
+
+const { races, trendingRaces, contributors, years, range } = Astro.props;
+const currentYear = new Date().getUTCFullYear();
+const contributorsSelected = Astro.url.searchParams.has('contributorsRange');
+const preservedParams = [...Astro.url.searchParams.entries()].filter(([name]) => name !== 'contributorsRange');
+const relative = (iso: string) => {
+  const seconds = Math.max(1, Math.round((Date.now() - Date.parse(iso)) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+};
+const avatarStackStyle = (count: number) => {
+  if (count <= 4) return undefined;
+
+  const overlap = 32 - (107 - 32) / (count - 1);
+  const compactOverlap = 27 - (87 - 27) / (count - 1);
+  return `--avatar-overlap: -${overlap}px; --avatar-overlap-compact: -${compactOverlap}px`;
+};
+---
+
+<section class="activity-board" aria-labelledby="activity-board-title" data-activity-board data-active-index={contributorsSelected ? '2' : '0'} data-rotation={contributorsSelected ? 'paused' : 'auto'}>
+  <div class="section-heading activity-board__heading">
+    <div>
+      <span class="eyebrow">live from the paddock</span>
+      <h2 id="activity-board-title">Race activity</h2>
+    </div>
+    <div class="activity-switcher" role="tablist" aria-label="Race activity tables">
+      <button id="activity-tab-latest" class:list={['activity-switcher__tab', { 'is-active': !contributorsSelected }]} type="button" role="tab" aria-selected={!contributorsSelected} aria-controls="activity-panel-latest" tabindex={contributorsSelected ? -1 : 0} data-activity-tab="latest">Latest races</button>
+      <button id="activity-tab-trending" class="activity-switcher__tab" type="button" role="tab" aria-selected="false" aria-controls="activity-panel-trending" tabindex="-1" data-activity-tab="trending">Trending</button>
+      <button id="activity-tab-contributors" class:list={['activity-switcher__tab', { 'is-active': contributorsSelected }]} type="button" role="tab" aria-selected={contributorsSelected} aria-controls="activity-panel-contributors" tabindex={contributorsSelected ? 0 : -1} data-activity-tab="contributors">Top contributors</button>
+    </div>
+  </div>
+
+  <div class="activity-board__viewport">
+    <div id="activity-panel-latest" class:list={['activity-board__panel', { 'is-active': !contributorsSelected }]} role="tabpanel" aria-labelledby="activity-tab-latest" aria-hidden={contributorsSelected ? 'true' : undefined} inert={contributorsSelected} data-activity-panel="latest">
+      {races.length ? (
+        <div class="race-list">
+          {races.map((race, index) => (
+            <a class="race-list__row" href={`/${race.slug}`} data-track="latest_race_opened" data-racer-count={race.handles.length}>
+              <span class="race-list__rank">{String(index + 1).padStart(2, '0')}</span>
+              <span class="avatar-stack" aria-hidden="true" style={avatarStackStyle(race.handles.length)}>
+                {race.handles.map((handle) => <img src={`/avatar/${handle}`} alt="" loading="lazy" width="32" height="32" />)}
+              </span>
+              <span class="race-list__names">{race.handles.map((handle) => `@${handle}`).join(' vs ')}</span>
+              <span class="race-list__meta"><time datetime={race.lastViewedAt}>{relative(race.lastViewedAt)}</time><span>{race.viewCount.toLocaleString()} views</span></span>
+              <span class="race-list__arrow" aria-hidden="true">↗</span>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div class="empty-state"><span>&gt;_</span><p>The first race you open will show up here.</p></div>
+      )}
+    </div>
+
+    <div id="activity-panel-trending" class="activity-board__panel" role="tabpanel" aria-labelledby="activity-tab-trending" aria-hidden="true" inert data-activity-panel="trending">
+      {trendingRaces.length ? (
+        <div class="race-list">
+          {trendingRaces.map((race, index) => (
+            <a class="race-list__row" href={`/${race.slug}`} data-track="trending_race_opened" data-racer-count={race.handles.length}>
+              <span class="race-list__rank">{String(index + 1).padStart(2, '0')}</span>
+              <span class="avatar-stack" aria-hidden="true" style={avatarStackStyle(race.handles.length)}>
+                {race.handles.map((handle) => <img src={`/avatar/${handle}`} alt="" loading="lazy" width="32" height="32" />)}
+              </span>
+              <span class="race-list__names">{race.handles.map((handle) => `@${handle}`).join(' vs ')}</span>
+              <span class="race-list__meta"><time datetime={race.lastViewedAt}>{relative(race.lastViewedAt)}</time><span>{race.viewsLast24Hours.toLocaleString()} in 24h</span></span>
+              <span class="race-list__arrow" aria-hidden="true">↗</span>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div class="empty-state"><span>&gt;_</span><p>Trending races will appear as views roll in.</p></div>
+      )}
+    </div>
+
+    <div id="activity-panel-contributors" class:list={['activity-board__panel', { 'is-active': contributorsSelected }]} role="tabpanel" aria-labelledby="activity-tab-contributors" aria-hidden={contributorsSelected ? undefined : 'true'} inert={!contributorsSelected} data-activity-panel="contributors">
+      <div class="contributor-table-wrap">
+        <div class="contributor-table__toolbar">
+          <span class="status-dot"><i></i> {range.label.toLowerCase()} totals cached so far</span>
+          <form class="contributor-filter" method="get" data-contributor-filter>
+            {preservedParams.map(([name, value]) => <input type="hidden" name={name} value={value} />)}
+            <label>
+              <span>period</span>
+              <select name="contributorsRange" aria-label="Top contributors period" data-contributor-range-select>
+                <option value="last30" selected={range.key === 'last30'}>last 30 days</option>
+                <option value="last365" selected={range.key === 'last365'}>last 365 days</option>
+                {years.map((year) => <option value={`year:${year}`} selected={range.key === `year:${year}`}>{year === currentYear ? `${year} · this year` : year}</option>)}
+                <option value="lifetime" selected={range.key === 'lifetime'}>lifetime</option>
+              </select>
+            </label>
+            <button class="sr-only" type="submit">Apply period</button>
+          </form>
+        </div>
+        {contributors.length ? (
+          <table class="contributor-table">
+            <thead>
+              <tr>
+                <th scope="col">rank</th>
+                <th scope="col">developer</th>
+                <th scope="col">contributions</th>
+                <th scope="col">years cached</th>
+                <th scope="col"><span class="sr-only">open race</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {contributors.map((contributor, index) => (
+                <tr>
+                  <td class="contributor-table__rank">{String(index + 1).padStart(2, '0')}</td>
+                  <td>
+                    <a class="contributor-table__person" href={`/${contributor.login}?range=${range.key}`} data-track="top_contributor_opened" data-profile-handle={contributor.login}>
+                      <img src={`/avatar/${contributor.login}`} alt="" loading="lazy" width="38" height="38" />
+                      <span><strong>{contributor.displayName || contributor.login}</strong><small>@{contributor.login}</small></span>
+                    </a>
+                  </td>
+                  <td class="contributor-table__total">{contributor.totalContributions.toLocaleString()}</td>
+                  <td class="contributor-table__years">{contributor.cachedYearCount.toLocaleString()}</td>
+                  <td><a class="contributor-table__arrow" href={`/${contributor.login}?range=${range.key}`} aria-label={`Open ${contributor.login}'s ${range.label.toLowerCase()} contribution history`}>↗</a></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div class="empty-state empty-state--embedded"><span>&gt;_</span><p>No cached contributions for {range.label.toLowerCase()} yet.</p></div>
+        )}
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const AUTO_ROTATE_MS = 7_000;
+
+  document.querySelectorAll<HTMLElement>('[data-activity-board]').forEach((board) => {
+    const tabs = Array.from(board.querySelectorAll<HTMLButtonElement>('[data-activity-tab]'));
+    const panels = Array.from(board.querySelectorAll<HTMLElement>('[data-activity-panel]'));
+    let activeIndex = Number(board.dataset.activeIndex ?? 0);
+    let rotation: number | undefined;
+
+    const showPanel = (index: number) => {
+      activeIndex = (index + tabs.length) % tabs.length;
+      board.dataset.activeIndex = String(activeIndex);
+      tabs.forEach((tab, tabIndex) => {
+        const active = tabIndex === activeIndex;
+        tab.classList.toggle('is-active', active);
+        tab.setAttribute('aria-selected', String(active));
+        tab.tabIndex = active ? 0 : -1;
+      });
+      panels.forEach((panel, panelIndex) => {
+        const active = panelIndex === activeIndex;
+        panel.classList.toggle('is-active', active);
+        panel.setAttribute('aria-hidden', String(!active));
+        panel.inert = !active;
+      });
+    };
+
+    const stopRotation = () => {
+      if (rotation !== undefined) window.clearInterval(rotation);
+      rotation = undefined;
+      board.dataset.rotation = 'paused';
+    };
+
+    board.addEventListener('focusin', stopRotation);
+
+    const contributorFilter = board.querySelector('[data-contributor-filter]');
+    if (contributorFilter instanceof HTMLFormElement) {
+      const rangeSelect = contributorFilter.querySelector('[data-contributor-range-select]');
+      if (rangeSelect instanceof HTMLSelectElement) rangeSelect.addEventListener('change', () => contributorFilter.requestSubmit());
+    }
+
+    tabs.forEach((tab, index) => {
+      tab.addEventListener('click', () => {
+        stopRotation();
+        showPanel(index);
+      });
+      tab.addEventListener('keydown', (event) => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        stopRotation();
+        const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : activeIndex + (event.key === 'ArrowRight' ? 1 : -1);
+        showPanel(nextIndex);
+        tabs[(nextIndex + tabs.length) % tabs.length]?.focus();
+      });
+    });
+
+    if (board.dataset.rotation !== 'paused' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      rotation = window.setInterval(() => {
+        if (!document.hidden) showPanel(activeIndex + 1);
+      }, AUTO_ROTATE_MS);
+    }
+  });
+</script>

@@ -2,25 +2,25 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import RaceBuilder from '../components/RaceBuilder.astro';
 import RaceExperience from '../components/RaceExperience.astro';
-import LatestRaces from '../components/LatestRaces.astro';
-import TopContributors from '../components/TopContributors.astro';
-import { getLatestRaces, getTopContributors, getTopContributorYears } from '../lib/db';
+import ActivityTables from '../components/ActivityTables.astro';
+import { getLatestRaces, getTopContributors, getTopContributorYears, getTrendingRaces } from '../lib/db';
 import { raceSlug } from '../lib/handles';
 import { parseRange } from '../lib/ranges';
 import { loadRaceWithDevFallback } from '../lib/race';
 import { clientIp, runtimeEnv } from '../lib/server';
-import type { LatestRace, RaceData, TopContributor } from '../lib/types';
+import type { LatestRace, RaceData, TopContributor, TrendingRace } from '../lib/types';
 
 const FEATURED_HANDLES = ['robj3d3', 'levelsio', 'marclou', 'alexgusevski', 'jackfriks'];
 const featuredSlug = raceSlug(FEATURED_HANDLES);
 let featuredRace: RaceData | null = null;
 let races: LatestRace[] = [];
+let trendingRaces: TrendingRace[] = [];
 let contributors: TopContributor[] = [];
 const currentYear = new Date().getUTCFullYear();
 const contributorRange = parseRange(Astro.url.searchParams.get('contributorsRange'), []);
 let contributorYears = [currentYear, ...contributorRange.years];
 const env = runtimeEnv();
-const [featuredResult, racesResult, contributorsResult, contributorYearsResult] = await Promise.allSettled([
+const [featuredResult, racesResult, trendingResult, contributorsResult, contributorYearsResult] = await Promise.allSettled([
   loadRaceWithDevFallback({
     db: env.DB,
     githubToken: env.GITHUB_TOKEN,
@@ -31,6 +31,7 @@ const [featuredResult, racesResult, contributorsResult, contributorYearsResult] 
     clientIp: clientIp(Astro.request),
   }),
   getLatestRaces(env.DB, 10),
+  getTrendingRaces(env.DB, 10),
   getTopContributors(env.DB, 10, contributorRange),
   getTopContributorYears(env.DB),
 ]);
@@ -38,6 +39,8 @@ if (featuredResult.status === 'fulfilled') featuredRace = featuredResult.value;
 else console.error('featured_race_unavailable', featuredResult.reason);
 if (racesResult.status === 'fulfilled') races = racesResult.value;
 else console.error('latest_races_unavailable', racesResult.reason);
+if (trendingResult.status === 'fulfilled') trendingRaces = trendingResult.value;
+else console.error('trending_races_unavailable', trendingResult.reason);
 if (contributorsResult.status === 'fulfilled') contributors = contributorsResult.value;
 else console.error('top_contributors_unavailable', contributorsResult.reason);
 if (contributorYearsResult.status === 'fulfilled') contributorYears.push(...contributorYearsResult.value);
@@ -72,8 +75,7 @@ const schema = {
     </section>
   )}
   <div class="shell home-content">
-    <LatestRaces races={races} />
-    <TopContributors contributors={contributors} years={contributorYears} range={contributorRange} />
+    <ActivityTables races={races} trendingRaces={trendingRaces} contributors={contributors} years={contributorYears} range={contributorRange} />
     <section class="how-strip">
       <span class="eyebrow">what gets counted?</span>
       <div><h2>Whatever GitHub puts in the squares.</h2><p>Commits, pull requests, issues, and reviews are combined exactly as GitHub reports them. We cache the public result; we never ask for repository access.</p><a href="/how-it-works">read the methodology →</a></div>

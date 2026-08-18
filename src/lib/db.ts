@@ -1,5 +1,5 @@
 import { parseRange } from './ranges';
-import type { LatestRace, ProfileRecord, ProfileYearRecord, RangeDefinition, TopContributor } from './types';
+import type { LatestRace, ProfileRecord, ProfileYearRecord, RangeDefinition, TopContributor, TrendingRace } from './types';
 
 interface ProfileRow {
   github_id: string;
@@ -126,9 +126,11 @@ export async function upsertProfileYears(db: D1Database, years: ProfileYearRecor
 export async function recordRaceView(db: D1Database, slug: string, handles: string[], now = new Date()): Promise<void> {
   const iso = now.toISOString();
   const threshold = new Date(now.getTime() - 60_000).toISOString();
+  const bucketStart = new Date(Math.floor(now.getTime() / 60_000) * 60_000).toISOString();
   await db.batch([
     db.prepare('INSERT OR IGNORE INTO races (slug, handles_json, first_viewed_at, last_viewed_at, view_count) VALUES (?, ?, ?, ?, 1)').bind(slug, JSON.stringify(handles), iso, iso),
     db.prepare('UPDATE races SET last_viewed_at = ?, view_count = view_count + 1 WHERE slug = ? AND last_viewed_at < ?').bind(iso, slug, threshold),
+    db.prepare('INSERT OR IGNORE INTO race_view_buckets (slug, bucket_start, view_count) VALUES (?, ?, 1)').bind(slug, bucketStart),
   ]);
 }
 
@@ -142,6 +144,34 @@ export async function getLatestRaces(db: D1Database, limit = 10): Promise<Latest
     handles: parseJson<string[]>(row.handles_json, []),
     lastViewedAt: row.last_viewed_at,
     viewCount: row.view_count,
+  }));
+}
+
+export async function getTrendingRaces(db: D1Database, limit = 10, now = new Date()): Promise<TrendingRace[]> {
+  const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  const result = await db
+    .prepare(`
+      SELECT
+        r.slug,
+        r.handles_json,
+        r.last_viewed_at,
+        r.view_count,
+        SUM(rvb.view_count) AS views_last_24_hours
+      FROM race_view_buckets rvb
+      INNER JOIN races r ON r.slug = rvb.slug
+      WHERE rvb.bucket_start >= ?
+      GROUP BY r.slug, r.handles_json, r.last_viewed_at, r.view_count
+      ORDER BY views_last_24_hours DESC, r.last_viewed_at DESC
+      LIMIT ?
+    `)
+    .bind(cutoff, Math.max(1, Math.min(limit, 20)))
+    .all<{ slug: string; handles_json: string; last_viewed_at: string; view_count: number; views_last_24_hours: number }>();
+  return result.results.map((row) => ({
+    slug: row.slug,
+    handles: parseJson<string[]>(row.handles_json, []),
+    lastViewedAt: row.last_viewed_at,
+    viewCount: row.view_count,
+    viewsLast24Hours: Number(row.views_last_24_hours),
   }));
 }
 

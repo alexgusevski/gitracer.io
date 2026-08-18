@@ -66,6 +66,10 @@ export interface LatestRace {
   viewCount: number;
 }
 
+export interface TrendingRace extends LatestRace {
+  viewsLast24Hours: number;
+}
+
 export interface TopContributor {
   login: string;
   displayName: string | null;
