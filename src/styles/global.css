@@ -137,6 +137,35 @@ img { display: block; max-width: 100%; }
 .ticker { overflow: hidden; border-top: 3px solid var(--race); border-bottom: 1px solid #151820; background: #0b0d12; color: #fff; white-space: nowrap; }
 .ticker > div { width: max-content; padding: 10px 0; display: flex; align-items: center; gap: 30px; font-family: var(--mono); font-size: 11px; font-weight: 650; letter-spacing: .11em; animation: ticker 35s linear infinite; }
 .ticker i { color: var(--race); font-size: 7px; }
+.home-battle-hero { height: 100dvh; min-height: 640px; overflow: hidden; background: var(--paper-2); }
+.race-experience--featured { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: var(--paper-2); }
+.race-experience--featured .race-titlebar { position: relative; z-index: 8; min-height: 96px; padding: 12px 18px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 22px; border: 0; background: color-mix(in srgb, var(--panel) 78%, transparent); backdrop-filter: blur(14px); }
+.race-experience--featured .race-leading { min-width: 0; display: flex; align-items: center; gap: 18px; }
+.race-experience--featured .race-summary { min-width: 0; max-width: none; }
+.race-experience--featured .race-titlebar .eyebrow { font-size: 12px; }
+.race-experience--featured .race-titlebar h1 { max-width: none; margin: 4px 0 0; overflow: visible; font-size: clamp(20px, 1.8vw, 27px); line-height: 1.05; text-overflow: clip; white-space: normal; }
+.race-experience--featured .race-titlebar p { display: none; }
+.race-experience--featured .featured-wordmark { position: static; z-index: 2; grid-column: 2; font-size: 24px; transform: none; }
+.race-experience--featured .featured-wordmark > span { width: 40px; height: 40px; border-radius: 9px; }
+.race-experience--featured .race-actions { position: relative; z-index: 3; justify-self: end; margin-left: 0; gap: 6px; }
+.race-experience--featured .featured-range-select { width: 178px; min-width: 178px; min-height: 42px; padding: 0 34px 0 11px; border: 1px solid var(--line); border-radius: 7px; outline: 0; background: color-mix(in srgb, var(--paper) 62%, transparent); color: var(--ink); font-family: var(--mono); font-size: 11px; cursor: pointer; }
+.race-experience--featured .featured-range-select:focus-visible { border-color: var(--line-strong); outline: 2px solid color-mix(in srgb, var(--ink) 12%, transparent); outline-offset: 1px; }
+.race-experience--featured .race-freshness { padding: 0 3px; font-size: 11px; white-space: nowrap; }
+.race-experience--featured .race-mode-toggle { min-width: 138px; padding-inline: 12px; gap: 8px; }
+.race-experience--featured .race-action-icon { width: 40px; min-width: 40px; }
+.race-experience--featured .race-actions .button { min-height: 40px; background: transparent; box-shadow: none; font-size: 11px; }
+.race-experience--featured .race-actions .github-link--compact,
+.race-experience--featured .race-actions .theme-toggle.compact { width: 40px; min-width: 40px; height: 40px; }
+.race-experience--featured .race-actions .button:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); box-shadow: none; transform: none; }
+.race-experience--featured > [data-graph-panel],
+.race-experience--featured > [data-battle-panel] { min-height: 0; overflow: hidden; }
+.race-experience--featured > [data-graph-panel],
+.race-experience--featured > [data-graph-panel] .chart-shell,
+.race-experience--featured > [data-battle-panel],
+.race-experience--featured > [data-battle-panel] > * { height: 100%; }
+.race-experience--featured .chart-shell { min-height: 0; border: 0; border-radius: 0; box-shadow: none; }
+.race-experience--featured .race-chart { height: 100%; min-height: 0; }
+.race-experience--featured .chart-error { min-height: 0; margin: 0; padding-inline: 12px; background: var(--paper-2); }
 .home-content { padding: 76px 0 100px; }
 .section-heading { margin-bottom: 22px; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
 .section-heading h2 { margin: 4px 0 0; font-family: var(--display); font-size: 34px; letter-spacing: -.045em; }
@@ -286,10 +315,24 @@ img { display: block; max-width: 100%; }
   .site-header__inner, .site-footer__inner { width: min(1120px, calc(100% - 560px)); }
 }
 
+@media (max-width: 1100px) {
+  .race-experience--featured .race-summary { display: none; }
+}
+
 @media (max-width: 800px) {
   .site-header__inner { grid-template-columns: 1fr auto; }
   .site-header nav { display: none; }
   .mobile-sponsor { display: flex; }
+  .home-battle-hero { height: 100dvh; min-height: 560px; }
+  .race-experience--featured .race-titlebar { min-height: 72px; padding: 8px 10px; display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 8px; }
+  .race-experience--featured .race-leading { gap: 0; }
+  .race-experience--featured .featured-wordmark { font-size: 20px; }
+  .race-experience--featured .featured-wordmark > span { width: 34px; height: 34px; }
+  .race-experience--featured .race-actions { min-width: 0; justify-self: end; margin-top: 0; overflow-x: auto; scrollbar-width: none; }
+  .race-experience--featured .race-actions::-webkit-scrollbar { display: none; }
+  .race-experience--featured .race-freshness { display: none; }
+  .race-experience--featured .featured-range-select { width: 138px; min-width: 138px; min-height: 38px; font-size: 10px; }
+  .race-experience--featured .race-actions .button { min-height: 38px; font-size: 11px; }
   .hero { min-height: auto; padding: 70px 0 56px; }
   .hero h1 { font-size: clamp(43px, 13vw, 68px); }
   .hero__lede { font-size: 13px; }
@@ -316,6 +359,17 @@ img { display: block; max-width: 100%; }
   .site-header__inner { width: calc(100% - 24px); min-height: 60px; }
   .wordmark { font-size: 15px; }
   .wordmark > span { width: 26px; height: 26px; }
+  .home-battle-hero { height: 100dvh; min-height: 520px; }
+  .race-experience--featured .race-titlebar { min-height: 62px; padding-inline: 8px; gap: 5px; }
+  .race-experience--featured .featured-wordmark { font-size: 16px; }
+  .race-experience--featured .featured-wordmark > span { width: 28px; height: 28px; margin-right: 5px; border-radius: 6px; }
+  .race-experience--featured .race-actions { gap: 2px; }
+  .race-experience--featured .featured-range-select { width: 112px; min-width: 112px; min-height: 36px; padding-inline: 8px 24px; }
+  .race-experience--featured .race-mode-toggle { min-width: 38px; width: 38px; padding: 0; }
+  .race-experience--featured .race-mode-toggle [data-mode-label] { display: none; }
+  .race-experience--featured .race-action-icon { width: 38px; min-width: 38px; }
+  .race-experience--featured .github-link--compact,
+  .race-experience--featured .theme-toggle.compact { width: 38px; min-width: 38px; height: 38px; }
   .hero { padding-top: 54px; }
   .hero h1 { margin-top: 24px; }
   .race-builder { margin-top: 32px; }

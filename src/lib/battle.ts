@@ -3,6 +3,24 @@ import type { ContributionLevel, RaceData } from './types';
 export const BATTLE_WIDTH = 1280;
 export const BATTLE_HEIGHT = 720;
 export const FULL_DENSITY_CONTRIBUTIONS = 12_000;
+const BATTLE_VIEW_INSET = 0.82;
+const BATTLE_VIEW_MIN_AXIS_SCALE = 0.65;
+
+export interface BattleViewScale {
+  x: number;
+  y: number;
+}
+
+export function calculateBattleViewScale(width: number, height: number): BattleViewScale {
+  const logicalAspect = BATTLE_WIDTH / BATTLE_HEIGHT;
+  const viewportAspect = Math.max(1, width) / Math.max(1, height);
+  const aspectScaleX = Math.min(1, logicalAspect / viewportAspect);
+  const aspectScaleY = Math.min(1, viewportAspect / logicalAspect);
+  return {
+    x: Math.max(BATTLE_VIEW_MIN_AXIS_SCALE, aspectScaleX) * BATTLE_VIEW_INSET,
+    y: Math.max(BATTLE_VIEW_MIN_AXIS_SCALE, aspectScaleY) * BATTLE_VIEW_INSET,
+  };
+}
 
 export interface BattleDay {
   date: string;
@@ -308,6 +326,7 @@ export class BattleSimulation {
   readonly scenario: BattleScenario;
   readonly unitScale: number;
   readonly bases: BattleBase[];
+  readonly emptySeat: BattleBase;
   readonly teams: BattleTeamState[];
   readonly fighters: BattleFighter[] = [];
   readonly tracers: BattleTracer[] = [];
@@ -339,6 +358,7 @@ export class BattleSimulation {
     this.spawnRate = Math.max(180, (projected / scenario.durationSeconds) * 1.8);
     this.spatialBuckets = Array.from({ length: this.spatialColumns * this.spatialRows }, () => []);
     this.bases = this.createBases(scenario.contributors.length);
+    this.emptySeat = this.createBase(-1, Math.PI / 2);
     this.teams = scenario.contributors.map((contributor, team) => ({
       contributor,
       base: this.bases[team]!,
@@ -398,15 +418,20 @@ export class BattleSimulation {
   }
 
   private createBases(count: number): BattleBase[] {
-    return Array.from({ length: count }, (_, team) => {
-      const angle = -Math.PI / 2 + (team / count) * Math.PI * 2;
-      return {
-        team,
-        angle,
-        x: BATTLE_WIDTH / 2 + Math.cos(angle) * (BATTLE_WIDTH * 0.4),
-        y: BATTLE_HEIGHT / 2 + Math.sin(angle) * (BATTLE_HEIGHT * 0.37),
-      };
-    });
+    const seatCount = count + 1;
+    return Array.from({ length: count }, (_, team) => this.createBase(
+      team,
+      Math.PI / 2 + ((team + 1) / seatCount) * Math.PI * 2,
+    ));
+  }
+
+  private createBase(team: number, angle: number): BattleBase {
+    return {
+      team,
+      angle,
+      x: BATTLE_WIDTH / 2 + Math.cos(angle) * (BATTLE_WIDTH * 0.4),
+      y: BATTLE_HEIGHT / 2 + Math.sin(angle) * (BATTLE_HEIGHT * 0.37),
+    };
   }
 
   private processTimelineThrough(targetDay: number): void {

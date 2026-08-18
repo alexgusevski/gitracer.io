@@ -1,13 +1,24 @@
 ---
 import type { RaceData } from '../lib/types';
 import BattleGame from './BattleGame.astro';
+import GitHubLink from './GitHubLink.astro';
+import ThemeToggle from './ThemeToggle.astro';
 
-interface Props { data: RaceData }
-const { data } = Astro.props;
+interface Props {
+  data: RaceData;
+  featured?: boolean;
+}
+const { data, featured = false } = Astro.props;
 const currentYear = new Date().getUTCFullYear();
 const fetchedTimes = data.racers.map((racer) => racer.fetchedAt).filter((value): value is string => Boolean(value));
 const fetchedAt = fetchedTimes.sort()[0] ?? data.generatedAt;
 const safeJson = JSON.stringify(data).replace(/</g, '\\u003c');
+const rangeOptions = [
+  { value: 'last30', label: 'last 30 days' },
+  { value: 'last365', label: 'last 365 days' },
+  ...data.availableYears.map((year) => ({ value: `year:${year}`, label: year === currentYear ? `${year} · this year` : String(year) })),
+  { value: 'lifetime', label: 'lifetime' },
+];
 const leaderText = data.racers.length === 1
   ? `@${data.racers[0]?.login} made ${data.racers[0]?.total.toLocaleString()} contributions.`
   : data.leader?.tied
@@ -15,45 +26,61 @@ const leaderText = data.racers.length === 1
     : `@${data.leader?.login} is leading by ${data.leader?.lead.toLocaleString()} contributions.`;
 ---
 
-<section class="race-experience" data-race-experience data-slug={data.slug}>
+<section class:list={['race-experience', { 'race-experience--featured': featured }]} data-race-experience data-slug={data.slug} data-share-path={featured ? `/${data.slug}` : ''}>
   <div class="race-titlebar">
-    <div>
-      <span class="eyebrow"><i class="live-pip"></i> race in progress</span>
-      <h1 data-leader-copy>{leaderText}</h1>
-      <p>Every racer starts at zero on <span data-range-start>{data.range.start}</span>. All public GitHub contribution types count.</p>
+    <div class="race-leading">
+      <div class="race-summary">
+        <span class="eyebrow"><i class="live-pip"></i> race in progress</span>
+        <h1 data-leader-copy>{leaderText}</h1>
+        <p>Every racer starts at zero on <span data-range-start>{data.range.start}</span>. All public GitHub contribution types count.</p>
+      </div>
+      {featured && (
+        <select class="featured-range-select" data-range-select aria-label="Race period">
+          {rangeOptions.map((option) => <option value={option.value} selected={data.range.key === option.value}>{option.label}</option>)}
+        </select>
+      )}
     </div>
+    {featured && (
+      <a class="wordmark featured-wordmark" href="/" aria-label="GitRacer home">
+        <span aria-hidden="true"><img src="/icon.svg" alt="" /></span><b>gitracer</b><i>.io</i>
+      </a>
+    )}
     <div class="race-actions">
-      <button class="button button--quiet race-mode-toggle" type="button" data-mode-toggle aria-pressed="false">
-        <span class="race-mode-icon" data-battle-mode-icon aria-hidden="true">⚔</span>
-        <span class="race-mode-icon" data-graph-mode-icon aria-hidden="true" hidden>
+      {featured && <div class="race-freshness"><span class="cache-light"></span><span>data fetched <time datetime={fetchedAt} data-fetched-time>{fetchedAt}</time></span></div>}
+      <button class="button button--quiet race-mode-toggle" type="button" data-mode-toggle aria-pressed="true">
+        <span class="race-mode-icon" data-battle-mode-icon aria-hidden="true" hidden>⚔</span>
+        <span class="race-mode-icon" data-graph-mode-icon aria-hidden="true">
           <svg viewBox="0 0 20 20"><path d="M2.5 15.5 6.8 11l3 2.4 6-7"/><path d="M14 6.4h2.2v2.3"/></svg>
         </span>
-        <span data-mode-label>battle mode</span>
+        <span data-mode-label>graph mode</span>
       </button>
-      <button class="button button--quiet race-action-icon" type="button" data-share-race aria-label="Share race" title="Share race">
-        <span data-share-icon aria-hidden="true">↗</span>
-        <span data-share-copied-icon aria-hidden="true" hidden>✓</span>
-      </button>
+      {!featured && (
+        <button class="button button--quiet race-action-icon" type="button" data-share-race aria-label="Share race" title="Share race">
+          <span data-share-icon aria-hidden="true">↗</span>
+          <span data-share-copied-icon aria-hidden="true" hidden>✓</span>
+        </button>
+      )}
       <button class="button button--quiet race-action-icon" type="button" data-refresh-race aria-label="Refresh race data" title="Refresh race data" hidden={!data.canRefresh}>
         <span aria-hidden="true">↻</span>
       </button>
+      {featured && <GitHubLink compact />}
+      {featured && <ThemeToggle compact />}
     </div>
   </div>
 
-  <div class="race-toolbar">
-    <label>
-      <span>period</span>
-      <select data-range-select aria-label="Race period">
-        <option value="last30" selected={data.range.key === 'last30'}>last 30 days</option>
-        <option value="last365" selected={data.range.key === 'last365'}>last 365 days</option>
-        {data.availableYears.map((year) => <option value={`year:${year}`} selected={data.range.key === `year:${year}`}>{year === currentYear ? `${year} · this year` : year}</option>)}
-        <option value="lifetime" selected={data.range.key === 'lifetime'}>lifetime</option>
-      </select>
-    </label>
-    <div class="race-freshness"><span class="cache-light"></span><span>data fetched <time datetime={fetchedAt} data-fetched-time>{fetchedAt}</time></span></div>
-  </div>
+  {!featured && (
+    <div class="race-toolbar">
+      <label>
+        <span>period</span>
+        <select data-range-select aria-label="Race period">
+          {rangeOptions.map((option) => <option value={option.value} selected={data.range.key === option.value}>{option.label}</option>)}
+        </select>
+      </label>
+      <div class="race-freshness"><span class="cache-light"></span><span>data fetched <time datetime={fetchedAt} data-fetched-time>{fetchedAt}</time></span></div>
+    </div>
+  )}
 
-  <div data-graph-panel>
+  <div data-graph-panel hidden>
     <div class="chart-shell" data-chart-shell aria-label={`Cumulative GitHub contributions for ${data.racers.map((racer) => racer.login).join(', ')}`}>
       <div class="chart-y-label">cumulative contributions</div>
       <svg class="race-chart" data-race-chart viewBox="0 0 1000 440" role="img"></svg>
@@ -62,25 +89,29 @@ const leaderText = data.racers.length === 1
       <div class="chart-loading" data-chart-loading hidden><span></span> fetching public contributions…</div>
     </div>
   </div>
-  <div data-battle-panel hidden><BattleGame data={data} embedded /></div>
+  <div data-battle-panel><BattleGame data={data} embedded hero={featured} active /></div>
   <p class="chart-error" data-chart-error role="alert"></p>
 
-  <div class="racer-grid" data-racer-grid>
-    {data.racers.map((racer, index) => (
-      <article class="racer-card" style={`--racer-color:${racer.color}`} data-racer-index={index}>
-        <a class="racer-card__person" href={`/${racer.login}`} data-track="profile_opened" data-profile-handle={racer.login}>
-          <img src={racer.avatarUrl} alt={`${racer.login}'s GitHub avatar`} width="56" height="56" />
-          <span><strong>{racer.displayName || racer.login}</strong><small>@{racer.login} ↗</small></span>
-        </a>
-        <div class="racer-card__stats">
-          <span><b data-stat="total">{racer.total.toLocaleString()}</b><small>contributions</small></span>
-          <span><b data-stat="activeDays">{racer.activeDays.toLocaleString()}</b><small>active days</small></span>
-          <span><b data-stat="longestStreak">{racer.longestStreak.toLocaleString()}</b><small>best streak</small></span>
-        </div>
-      </article>
-    ))}
-  </div>
-  <div class="race-note"><span aria-hidden="true">i</span><p>GitHub’s graph combines commits, pull requests, issues, and reviews that GitHub counts as contributions. Private activity only appears if the profile owner chose to expose anonymized private contribution counts.</p></div>
+  {!featured && (
+    <>
+      <div class="racer-grid" data-racer-grid>
+        {data.racers.map((racer, index) => (
+          <article class="racer-card" style={`--racer-color:${racer.color}`} data-racer-index={index}>
+            <a class="racer-card__person" href={`/${racer.login}`} data-track="profile_opened" data-profile-handle={racer.login}>
+              <img src={racer.avatarUrl} alt={`${racer.login}'s GitHub avatar`} width="56" height="56" />
+              <span><strong>{racer.displayName || racer.login}</strong><small>@{racer.login} ↗</small></span>
+            </a>
+            <div class="racer-card__stats">
+              <span><b data-stat="total">{racer.total.toLocaleString()}</b><small>contributions</small></span>
+              <span><b data-stat="activeDays">{racer.activeDays.toLocaleString()}</b><small>active days</small></span>
+              <span><b data-stat="longestStreak">{racer.longestStreak.toLocaleString()}</b><small>best streak</small></span>
+            </div>
+          </article>
+        ))}
+      </div>
+      <div class="race-note"><span aria-hidden="true">i</span><p>GitHub’s graph combines commits, pull requests, issues, and reviews that GitHub counts as contributions. Private activity only appears if the profile owner chose to expose anonymized private contribution counts.</p></div>
+    </>
+  )}
   <script is:inline type="application/json" data-race-data set:html={safeJson}></script>
 </section>
 
@@ -104,7 +135,7 @@ const leaderText = data.racers.length === 1
     const battlePanel = root.querySelector('[data-battle-panel]');
     const modeButton = root.querySelector('[data-mode-toggle]');
     let state = JSON.parse(json?.textContent || '{}');
-    let viewMode = 'graph';
+    let viewMode = 'battle';
     let chartRenderId = 0;
     const chartInstanceId = Math.random().toString(36).slice(2);
     if (!(svg instanceof SVGElement) || !(shell instanceof HTMLElement) || !(tooltip instanceof HTMLElement)) return;
@@ -161,7 +192,7 @@ const leaderText = data.racers.length === 1
         const reveal = svg.querySelector('[data-chart-reveal]');
         const startedAt = performance.now();
         const draw = (now) => {
-          const progress = Math.min(1, (now - startedAt) / 950);
+          const progress = Math.max(0, Math.min(1, (now - startedAt) / 950));
           const eased = 1 - Math.pow(1 - progress, 3);
           reveal?.setAttribute('width', String(clipWidth * eased));
           if (progress < 1) requestAnimationFrame(draw);
@@ -265,10 +296,12 @@ const leaderText = data.racers.length === 1
     root.querySelector('[data-refresh-race]')?.addEventListener('click', () => fetchRace(state.range.key, true));
     root.querySelector('[data-share-race]')?.addEventListener('click', async (event) => {
       const button = event.currentTarget;
+      const shareUrl = new URL(root.dataset.sharePath || location.pathname, location.origin);
+      shareUrl.searchParams.set('range', state.range.key);
       try {
-        if (navigator.share) await navigator.share({ title: document.title, text: root.querySelector('[data-leader-copy]')?.textContent || '', url: location.href });
+        if (navigator.share) await navigator.share({ title: document.title, text: root.querySelector('[data-leader-copy]')?.textContent || '', url: shareUrl.href });
         else if (button instanceof HTMLButtonElement) {
-          await navigator.clipboard.writeText(location.href);
+          await navigator.clipboard.writeText(shareUrl.href);
           const shareIcon = button.querySelector('[data-share-icon]');
           const copiedIcon = button.querySelector('[data-share-copied-icon]');
           if (shareIcon instanceof HTMLElement) shareIcon.hidden = true;

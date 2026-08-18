@@ -5,22 +5,25 @@ import type { RaceData } from '../lib/types';
 interface Props {
   data?: RaceData;
   embedded?: boolean;
+  hero?: boolean;
+  active?: boolean;
 }
 
-const { data, embedded = false } = Astro.props;
+const { data, embedded = false, hero = false, active = !data } = Astro.props;
 const scenario = data ? createBattleScenarioFromRace(data) : createBattleScenario('garage', 1);
 const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
 ---
 
 <div
-  class:list={['battle-arena', { 'battle-arena--embedded': embedded }]}
+  class:list={['battle-arena', { 'battle-arena--embedded': embedded, 'battle-arena--hero': hero }]}
   data-battle-arena
   data-race-slug={data?.slug ?? ''}
-  data-autostart={data ? 'false' : 'true'}
+  data-range-key={data?.range.key ?? ''}
+  data-autostart={active ? 'true' : 'false'}
 >
   <div class="battle-field">
     <canvas data-battle-canvas width="1280" height="720" role="img" aria-label="Top-down contributor battle simulation"></canvas>
-    <div class="base-hud-layer" data-base-hud-layer aria-hidden="true"></div>
+    <div class="base-hud-layer" data-base-hud-layer></div>
     <span class="battle-watermark" aria-hidden="true">gitracer.io</span>
     <div class="winner-card" data-winner-card hidden>
       <span class="winner-trophy" aria-hidden="true">🏆</span>
@@ -38,8 +41,9 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
 
 <script>
   // @ts-nocheck -- this client-only renderer consumes server-validated race JSON and custom mode events.
-  import { BattleSimulation, calculateContributionGridLayout, createBattleScenarioFromRace, type BattleHudState, type BattleScenario } from '../lib/battle';
+  import { BATTLE_HEIGHT, BATTLE_WIDTH, BattleSimulation, calculateBattleViewScale, calculateContributionGridLayout, createBattleScenarioFromRace, type BattleHudState, type BattleScenario } from '../lib/battle';
   import { BattleRenderer } from '../lib/battle-renderer';
+  import { MAX_RACERS, normalizeHandle } from '../lib/handles';
 
   const exactNumber = new Intl.NumberFormat('en');
   const levelKeys = ['NONE', 'FIRST_QUARTILE', 'SECOND_QUARTILE', 'THIRD_QUARTILE', 'FOURTH_QUARTILE'];
@@ -49,9 +53,10 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
     root.dataset.ready = 'true';
 
     const canvas = root.querySelector('[data-battle-canvas]');
+    const battleField = root.querySelector('.battle-field');
     const scenarioJson = root.querySelector('[data-battle-scenario]');
     const baseHudLayer = root.querySelector('[data-base-hud-layer]');
-    if (!(canvas instanceof HTMLCanvasElement) || !(baseHudLayer instanceof HTMLElement)) return;
+    if (!(canvas instanceof HTMLCanvasElement) || !(battleField instanceof HTMLElement) || !(baseHudLayer instanceof HTMLElement)) return;
 
     let scenario = JSON.parse(scenarioJson?.textContent || '{}') as BattleScenario;
     let simulation = new BattleSimulation(scenario, 1);
@@ -105,28 +110,56 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
       return 'FOURTH_QUARTILE';
     };
 
+    const positionHud = (hud: HTMLElement, base: { x: number; y: number }) => {
+      const viewScale = calculateBattleViewScale(battleField.clientWidth, battleField.clientHeight);
+      const x = 0.5 + (base.x / BATTLE_WIDTH - 0.5) * viewScale.x;
+      const y = 0.5 + (base.y / BATTLE_HEIGHT - 0.5) * viewScale.y;
+      hud.style.left = `${x * 100}%`;
+      hud.style.top = `${y * 100}%`;
+      hud.classList.toggle('is-right', base.x > 760);
+    };
+
+    const repositionBaseHuds = () => {
+      simulation.teams.forEach((team, index) => {
+        const hud = baseHudLayer.querySelector(`[data-base-hud="${index}"]`);
+        if (hud instanceof HTMLElement) positionHud(hud, team.base);
+      });
+      const emptyHud = baseHudLayer.querySelector('.base-hud--empty');
+      if (emptyHud instanceof HTMLElement) positionHud(emptyHud, simulation.emptySeat);
+    };
+
     const makeBaseHuds = () => {
       baseHudLayer.replaceChildren();
       simulation.teams.forEach((team, index) => {
         const hud = document.createElement('div');
         hud.className = 'base-hud';
         hud.dataset.baseHud = String(index);
-        hud.style.left = `${(team.base.x / 1280) * 100}%`;
-        hud.style.top = `${(team.base.y / 720) * 100}%`;
+        positionHud(hud, team.base);
         hud.style.setProperty('--team', team.contributor.color);
-        hud.classList.toggle('is-right', team.base.x > 760);
 
         const handle = document.createElement('b');
         handle.textContent = `@${team.contributor.login}`;
-        const profile = document.createElement('span');
+        const profile = document.createElement('button');
+        profile.type = 'button';
         profile.className = 'base-profile';
+        profile.dataset.removeToggle = team.contributor.login;
+        profile.setAttribute('aria-label', `Remove ${team.contributor.login} from this race`);
+        profile.setAttribute('aria-expanded', 'false');
         const avatar = document.createElement('img');
         avatar.src = team.contributor.avatarUrl;
-        avatar.alt = '';
+        avatar.alt = `${team.contributor.login}'s GitHub avatar`;
         avatar.referrerPolicy = 'no-referrer';
         const deathMarker = document.createElement('i');
+        deathMarker.setAttribute('aria-hidden', 'true');
         deathMarker.textContent = '🕊️';
         profile.append(avatar, deathMarker);
+
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'base-remove';
+        remove.dataset.removeContributor = team.contributor.login;
+        remove.textContent = 'Remove?';
+        remove.hidden = true;
 
         const graph = document.createElement('canvas');
         graph.className = 'base-history';
@@ -149,9 +182,73 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
         hp.appendChild(hpFill);
         const hpLabel = document.createElement('small');
         hpLabel.dataset.baseHpLabel = '';
-        hud.append(handle, profile, graph, hp, hpLabel);
+        hud.append(handle, profile, graph, hp, hpLabel, remove);
         baseHudLayer.appendChild(hud);
       });
+
+      if (!root.dataset.raceSlug) return;
+      const emptyHud = document.createElement('div');
+      emptyHud.className = 'base-hud base-hud--empty';
+      positionHud(emptyHud, simulation.emptySeat);
+
+      const emptyLabel = document.createElement('b');
+      emptyLabel.textContent = 'add racer';
+      const addSeat = document.createElement('button');
+      addSeat.type = 'button';
+      addSeat.className = 'base-profile base-profile--empty';
+      addSeat.dataset.addSeat = '';
+      addSeat.setAttribute('aria-label', 'Add a GitHub user to this race');
+      addSeat.setAttribute('aria-expanded', 'false');
+      addSeat.textContent = '+';
+
+      const addForm = document.createElement('form');
+      addForm.className = 'base-add-form';
+      addForm.dataset.addForm = '';
+      addForm.noValidate = true;
+      addForm.autocomplete = 'off';
+      addForm.setAttribute('data-1p-ignore', 'true');
+      addForm.setAttribute('data-lpignore', 'true');
+      addForm.setAttribute('data-bwignore', 'true');
+      addForm.setAttribute('data-protonpass-ignore', 'true');
+      addForm.setAttribute('data-form-type', 'other');
+      addForm.hidden = true;
+      const addPlaceholder = document.createElement('span');
+      addPlaceholder.className = 'base-add-placeholder';
+      addPlaceholder.textContent = 'github handle';
+      addPlaceholder.setAttribute('aria-hidden', 'true');
+      const addInput = document.createElement('div');
+      addInput.dataset.addInput = '';
+      addInput.contentEditable = 'plaintext-only';
+      addInput.tabIndex = 0;
+      addInput.setAttribute('role', 'textbox');
+      addInput.setAttribute('aria-label', 'GitHub username to add');
+      addInput.setAttribute('aria-multiline', 'false');
+      addInput.setAttribute('aria-autocomplete', 'none');
+      addInput.setAttribute('inputmode', 'text');
+      addInput.setAttribute('enterkeyhint', 'go');
+      addInput.setAttribute('autocapitalize', 'none');
+      addInput.setAttribute('autocorrect', 'off');
+      addInput.setAttribute('data-1p-ignore', 'true');
+      addInput.setAttribute('data-lpignore', 'true');
+      addInput.setAttribute('data-bwignore', 'true');
+      addInput.setAttribute('data-protonpass-ignore', 'true');
+      addInput.setAttribute('data-form-type', 'other');
+      addInput.spellcheck = false;
+      const syncPlaceholder = () => {
+        addPlaceholder.hidden = Boolean((addInput.textContent || '').trim());
+      };
+      addInput.addEventListener('input', syncPlaceholder);
+      const addSubmit = document.createElement('button');
+      addSubmit.type = 'submit';
+      addSubmit.setAttribute('aria-label', 'Add racer');
+      addSubmit.title = 'Add racer';
+      addSubmit.textContent = '↵';
+      const addError = document.createElement('small');
+      addError.dataset.addError = '';
+      addError.setAttribute('role', 'alert');
+      addForm.append(addPlaceholder, addInput, addSubmit, addError);
+      emptyHud.append(emptyLabel, addSeat, addForm);
+      baseHudLayer.appendChild(emptyHud);
     };
 
     const paintBaseHuds = (state: BattleHudState) => {
@@ -254,22 +351,137 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
       renderer.draw();
     };
 
+    const closeLineupControls = () => {
+      baseHudLayer.querySelectorAll('[data-remove-contributor]').forEach((button) => {
+        if (button instanceof HTMLButtonElement) button.hidden = true;
+      });
+      baseHudLayer.querySelectorAll('[data-remove-toggle]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
+      const form = baseHudLayer.querySelector('[data-add-form]');
+      const addSeat = baseHudLayer.querySelector('[data-add-seat]');
+      if (form instanceof HTMLFormElement) form.hidden = true;
+      if (addSeat) addSeat.setAttribute('aria-expanded', 'false');
+      form?.closest('.base-hud')?.classList.remove('is-editing');
+    };
+
+    const navigateToLineup = (handles: string[]) => {
+      if (!handles.length) {
+        window.location.assign('/');
+        return;
+      }
+      const destination = new URL(`/${handles.join('+')}`, window.location.origin);
+      if (root.dataset.rangeKey) destination.searchParams.set('range', root.dataset.rangeKey);
+      window.location.assign(`${destination.pathname}${destination.search}`);
+    };
+
+    baseHudLayer.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const addSeat = target.closest('[data-add-seat]');
+      if (addSeat instanceof HTMLButtonElement) {
+        const form = addSeat.closest('.base-hud')?.querySelector('[data-add-form]');
+        const opening = form instanceof HTMLFormElement && form.hidden;
+        closeLineupControls();
+        if (form instanceof HTMLFormElement && opening) {
+          form.hidden = false;
+          addSeat.setAttribute('aria-expanded', 'true');
+          form.closest('.base-hud')?.classList.add('is-editing');
+          const error = form.querySelector('[data-add-error]');
+          if (error) error.textContent = scenario.contributors.length >= MAX_RACERS ? `This race already has ${MAX_RACERS} people.` : '';
+          if (scenario.contributors.length < MAX_RACERS) window.setTimeout(() => form.querySelector('[data-add-input]')?.focus(), 0);
+        }
+        return;
+      }
+
+      const removeToggle = target.closest('[data-remove-toggle]');
+      if (removeToggle instanceof HTMLButtonElement) {
+        const remove = removeToggle.closest('.base-hud')?.querySelector('[data-remove-contributor]');
+        const opening = remove instanceof HTMLButtonElement && remove.hidden;
+        closeLineupControls();
+        if (remove instanceof HTMLButtonElement && opening) {
+          remove.hidden = false;
+          removeToggle.setAttribute('aria-expanded', 'true');
+          remove.focus();
+        }
+        return;
+      }
+
+      const remove = target.closest('[data-remove-contributor]');
+      if (!(remove instanceof HTMLButtonElement)) return;
+      const login = remove.dataset.removeContributor;
+      const handles = scenario.contributors.map((contributor) => contributor.login).filter((handle) => handle !== login);
+      window.posthog?.capture?.('race_participant_removed', { racer_count: handles.length + 1 });
+      navigateToLineup(handles);
+    });
+
+    baseHudLayer.addEventListener('submit', (event) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement) || !form.matches('[data-add-form]')) return;
+      event.preventDefault();
+      const input = form.querySelector('[data-add-input]');
+      const error = form.querySelector('[data-add-error]');
+      if (!(input instanceof HTMLElement)) return;
+      const handle = normalizeHandle(input.textContent || '');
+      const handles = scenario.contributors.map((contributor) => contributor.login);
+      if (error) error.textContent = '';
+      if (handles.length >= MAX_RACERS) {
+        if (error) error.textContent = `This race already has ${MAX_RACERS} people.`;
+        return;
+      }
+      if (!handle) {
+        if (error) error.textContent = 'Enter a valid GitHub handle.';
+        input.focus();
+        return;
+      }
+      if (handles.includes(handle)) {
+        if (error) error.textContent = `@${handle} is already racing.`;
+        input.focus();
+        return;
+      }
+      window.posthog?.capture?.('race_participant_added', { racer_count: handles.length + 1 });
+      navigateToLineup([...handles, handle]);
+    });
+
+    baseHudLayer.addEventListener('keydown', (event) => {
+      const target = event.target;
+      if (event.key === 'Enter' && target instanceof HTMLElement && target.matches('[data-add-input]')) {
+        event.preventDefault();
+        target.closest('form')?.requestSubmit();
+        return;
+      }
+      if (event.key !== 'Escape') return;
+      closeLineupControls();
+      const addSeat = baseHudLayer.querySelector('[data-add-seat]');
+      if (addSeat instanceof HTMLButtonElement) addSeat.focus();
+    });
+
+    document.addEventListener('pointerdown', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('[data-remove-toggle], [data-remove-contributor], [data-add-seat], [data-add-form]')) return;
+      closeLineupControls();
+    });
+
     const matchesEvent = (event: Event) => {
       const detail = (event as CustomEvent).detail;
       return detail?.slug === root.dataset.raceSlug && detail?.data?.racers;
     };
     window.addEventListener('gitracer:battle-data', (event) => {
       if (!matchesEvent(event)) return;
-      replaceScenario(createBattleScenarioFromRace((event as CustomEvent).detail.data));
+      const data = (event as CustomEvent).detail.data;
+      root.dataset.rangeKey = data.range.key;
+      replaceScenario(createBattleScenarioFromRace(data));
       if (active) start();
     });
     window.addEventListener('gitracer:battle-activate', (event) => {
       if (!matchesEvent(event)) return;
-      replaceScenario(createBattleScenarioFromRace((event as CustomEvent).detail.data));
+      const data = (event as CustomEvent).detail.data;
+      root.dataset.rangeKey = data.range.key;
+      replaceScenario(createBattleScenarioFromRace(data));
       start();
     });
     window.addEventListener('resize', () => {
       renderer.resize();
+      repositionBaseHuds();
       renderer.draw();
     });
     new MutationObserver(() => paintBaseHuds(simulation.getHudState())).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -283,6 +495,7 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
 
 <style>
   .battle-arena {
+    --battle-zoom: 1.18;
     --contribution-none: #ebedf0;
     --contribution-one: #9be9a8;
     --contribution-two: #40c463;
@@ -296,30 +509,64 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
   }
   .battle-arena:not(.battle-arena--embedded) { min-height: 100vh; display: grid; align-items: center; }
   .battle-arena--embedded { border: 1px solid var(--line-strong); border-radius: 0 0 10px 10px; box-shadow: var(--shadow); }
+  .battle-arena--hero { height: 100%; min-height: 0; border: 0; border-radius: 0; box-shadow: none; }
   .battle-field { position: relative; width: 100%; overflow: hidden; background: var(--paper-2); }
-  .battle-field > canvas { position: relative; z-index: 1; width: 100%; height: auto; display: block; aspect-ratio: 16 / 9; background: var(--paper-2); }
-  .base-hud-layer { position: absolute; z-index: 2; inset: 0; aspect-ratio: 16 / 9; pointer-events: none; }
-  .base-hud-layer :global(.base-hud) { --history-width: 40px; position: absolute; width: calc(54px + var(--history-width)); display: grid; grid-template-columns: 46px var(--history-width); grid-template-rows: auto minmax(46px, auto) 7px auto; align-items: center; gap: 3px 8px; transform: translate(-23px, -50%); }
-  .base-hud-layer :global(.base-hud.is-right) { grid-template-columns: var(--history-width) 46px; transform: translate(calc(-100% + 23px), -50%); }
-  .base-hud-layer :global(.base-hud > b) { grid-column: 1 / -1; overflow: hidden; color: var(--ink); font-size: 7px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+  .battle-field > canvas { position: relative; z-index: 1; width: 100%; height: auto; display: block; aspect-ratio: 16 / 9; background: var(--paper-2); transform: scale(var(--battle-zoom)); transform-origin: center; }
+  .battle-arena--hero .battle-field,
+  .battle-arena--hero .battle-field > canvas { height: 100%; }
+  .battle-arena--hero .battle-field > canvas { aspect-ratio: auto; }
+  .battle-arena--hero .battle-watermark { display: none; }
+  .base-hud-layer { position: absolute; z-index: 2; inset: 0; aspect-ratio: 16 / 9; pointer-events: none; transform: scale(var(--battle-zoom)); transform-origin: center; }
+  .battle-arena--hero .base-hud-layer { aspect-ratio: auto; }
+  .base-hud-layer :global(.base-hud) { --history-width: 40px; position: absolute; width: calc(68px + var(--history-width)); display: grid; grid-template-columns: 56px var(--history-width); grid-template-rows: auto minmax(56px, auto) 8px auto; align-items: center; gap: 4px 10px; transform: translate(-28px, -50%); }
+  .base-hud-layer :global(.base-hud.is-right) { grid-template-columns: var(--history-width) 56px; transform: translate(calc(-100% + 28px), -50%); }
+  .base-hud-layer :global(.base-hud > b) { grid-column: 1 / -1; overflow: hidden; color: var(--ink); font-size: 9px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
   .base-hud-layer :global(.base-hud.is-right > b) { text-align: right; }
-  .base-hud-layer :global(.base-profile) { grid-column: 1; grid-row: 2; width: 44px; height: 44px; display: grid; place-items: center; border: 2px solid var(--team); border-radius: 50%; overflow: hidden; background: var(--panel); box-shadow: 2px 2px 0 color-mix(in srgb, var(--ink) 14%, transparent); }
+  .base-hud-layer :global(.base-profile) { grid-column: 1; grid-row: 2; width: 54px; height: 54px; padding: 0; display: grid; place-items: center; border: 2px solid var(--team); border-radius: 50%; overflow: hidden; background: var(--panel); color: var(--ink); box-shadow: 2px 2px 0 color-mix(in srgb, var(--ink) 14%, transparent); cursor: pointer; pointer-events: auto; transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease; }
+  .base-hud-layer :global(.base-profile:hover) { transform: scale(1.05); box-shadow: 3px 3px 0 color-mix(in srgb, var(--ink) 18%, transparent); }
+  .base-hud-layer :global(.base-profile:focus-visible),
+  .base-hud-layer :global(.base-remove:focus-visible),
+  .base-hud-layer :global(.base-add-form [data-add-input]:focus-visible),
+  .base-hud-layer :global(.base-add-form button:focus-visible) { outline: 2px solid var(--green); outline-offset: 2px; }
   .base-hud-layer :global(.base-profile img) { grid-area: 1 / 1; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
   .base-hud-layer :global(.base-profile i) { grid-area: 1 / 1; display: none; font-size: 27px; font-style: normal; line-height: 1; }
   .base-hud-layer :global(.base-history) { grid-column: 2; grid-row: 2; align-self: center; background: transparent; }
-  .base-hud-layer :global(.base-hp) { grid-column: 1; grid-row: 3; width: 44px; height: 7px; justify-self: center; overflow: hidden; background: #d73535; }
+  .base-hud-layer :global(.base-hp) { grid-column: 1; grid-row: 3; width: 54px; height: 8px; justify-self: center; overflow: hidden; background: #d73535; }
   .base-hud-layer :global(.base-hp span) { display: block; width: 100%; height: 100%; background: #9be332; transition: width .12s linear; }
-  .base-hud-layer :global(.base-hud > small) { grid-column: 1; grid-row: 4; color: var(--muted); font-size: 6px; line-height: 1; text-align: center; }
+  .base-hud-layer :global(.base-hud > small) { grid-column: 1; grid-row: 4; color: var(--muted); font-size: 8px; line-height: 1; text-align: center; }
   .base-hud-layer :global(.base-hud.is-right .base-profile),
   .base-hud-layer :global(.base-hud.is-right .base-hp),
   .base-hud-layer :global(.base-hud.is-right > small) { grid-column: 2; }
   .base-hud-layer :global(.base-hud.is-right .base-history) { grid-column: 1; }
+  .base-hud-layer :global(.base-remove) { position: absolute; z-index: 3; top: 28px; left: 61px; min-height: 28px; padding: 0 9px; border: 1px solid color-mix(in srgb, #d73535 65%, var(--line)); border-radius: 6px; background: var(--panel); color: #c33a3a; font-family: var(--mono); font-size: 9px; font-weight: 700; box-shadow: var(--shadow); cursor: pointer; pointer-events: auto; white-space: nowrap; }
+  .base-hud-layer :global(.base-hud.is-right .base-remove) { right: 61px; left: auto; }
+  .base-hud-layer :global(.base-remove:hover) { background: color-mix(in srgb, #d73535 10%, var(--panel)); }
+  .base-hud-layer :global(.base-hud.base-hud--empty) { --team: var(--line-strong); width: 56px; grid-template-columns: 56px; grid-template-rows: auto 56px; transform: translate(-28px, -50%); }
+  .base-hud-layer :global(.base-hud.base-hud--empty.is-right) { grid-template-columns: 56px; transform: translate(-28px, -50%); }
+  .base-hud-layer :global(.base-hud--empty > b),
+  .base-hud-layer :global(.base-hud--empty.is-right > b) { overflow: visible; color: var(--muted); text-align: center; }
+  .base-hud-layer :global(.base-hud--empty.is-editing > b) { opacity: 0; }
+  .base-hud-layer :global(.base-hud--empty .base-profile--empty),
+  .base-hud-layer :global(.base-hud--empty.is-right .base-profile--empty) { grid-column: 1; border: 1.5px dashed var(--line-strong); background: color-mix(in srgb, var(--muted) 5%, var(--panel)); color: var(--muted); font-size: 32px; font-weight: 400; line-height: 1; box-shadow: 2px 2px 0 color-mix(in srgb, var(--ink) 10%, transparent); }
+  .base-hud-layer :global(.base-hud--empty.is-editing .base-profile--empty) { border-style: solid; background: color-mix(in srgb, var(--muted) 10%, var(--panel)); }
+  .base-hud-layer :global(.base-add-form) { position: absolute; z-index: 4; right: auto; bottom: 66px; left: 50%; width: 280px; padding: 4px; display: grid; grid-template-columns: minmax(0, 1fr) 42px; gap: 2px; border: 1px solid var(--line-strong); border-radius: 9px; background: color-mix(in srgb, var(--panel) 94%, transparent); box-shadow: 0 8px 24px color-mix(in srgb, #000 20%, transparent); transform: translateX(-50%); pointer-events: auto; backdrop-filter: blur(10px); transition: border-color .15s ease, background-color .15s ease; }
+  .base-hud-layer :global(.base-hud--empty.is-right .base-add-form) { right: auto; left: 50%; }
+  .base-hud-layer :global(.base-add-form:focus-within) { border-color: var(--ink); background: var(--panel); }
+  .base-hud-layer :global(.base-add-placeholder),
+  .base-hud-layer :global(.base-add-form [data-add-input]) { grid-column: 1; grid-row: 1; min-width: 0; width: 100%; height: 42px; padding: 0 11px; border: 0; border-radius: 6px; font-family: var(--mono); font-size: 11px; line-height: 42px; white-space: nowrap; }
+  .base-hud-layer :global(.base-add-placeholder) { z-index: 0; overflow: hidden; color: var(--muted); opacity: .72; pointer-events: none; }
+  .base-hud-layer :global(.base-add-form [data-add-input]) { z-index: 1; display: block; overflow: hidden; outline: 0; background: transparent; caret-color: var(--ink); color: var(--ink); }
+  .base-hud-layer :global(.base-add-form button) { width: 42px; height: 42px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-family: var(--mono); font-size: 18px; cursor: pointer; transition: background-color .14s ease, color .14s ease; }
+  .base-hud-layer :global(.base-add-form button:hover) { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
+  .base-hud-layer :global(.base-add-form [data-add-input]:focus-visible),
+  .base-hud-layer :global(.base-add-form button:focus-visible) { outline: 0; }
+  .base-hud-layer :global(.base-add-form small) { position: absolute; top: calc(100% + 5px); left: 3px; min-height: 10px; color: #e05252; font-size: 8px; line-height: 1.3; white-space: nowrap; }
   .base-hud-layer :global(.base-hud.is-dead) { filter: grayscale(.75); }
   .base-hud-layer :global(.base-hud.is-dead .base-profile img) { display: none; }
   .base-hud-layer :global(.base-hud.is-dead .base-profile i) { display: block; }
   .base-hud-layer :global(.base-hud.is-dead .base-history) { opacity: .32; }
-  .battle-watermark { position: absolute; z-index: 4; top: 16px; right: 18px; padding: 4px 7px; background: color-mix(in srgb, var(--panel) 88%, transparent); color: var(--ink); font-size: 15px; font-weight: 800; letter-spacing: .035em; line-height: 1; pointer-events: none; }
-  .winner-card { position: absolute; z-index: 5; top: 50%; left: 50%; width: min(360px, calc(100% - 40px)); padding: 18px; display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 12px; border: 1px solid var(--line-strong); border-top: 3px solid var(--green); border-radius: 8px; background: color-mix(in srgb, var(--panel) 94%, transparent); box-shadow: var(--shadow); transform: translate(-50%, -50%); backdrop-filter: blur(5px); }
+  .battle-watermark { position: absolute; z-index: 4; top: 16px; right: 18px; padding: 4px 7px; background: color-mix(in srgb, var(--panel) 88%, transparent); color: var(--ink); font-size: 15px; font-weight: 800; letter-spacing: .035em; line-height: 1; pointer-events: none; transform: scale(var(--battle-zoom)); transform-origin: top right; }
+  .winner-card { position: absolute; z-index: 5; top: 50%; left: 50%; width: min(360px, calc(100% - 40px)); padding: 18px; display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 12px; border: 1px solid var(--line-strong); border-top: 3px solid var(--green); border-radius: 8px; background: color-mix(in srgb, var(--panel) 94%, transparent); box-shadow: var(--shadow); transform: translate(-50%, -50%) scale(var(--battle-zoom)); backdrop-filter: blur(5px); }
   .winner-trophy { font-size: 30px; line-height: 1; }
   .winner-card img { width: 58px; height: 58px; border: 2px solid var(--green); border-radius: 50%; background: var(--paper-2); object-fit: cover; }
   .winner-card div { min-width: 0; }
@@ -345,9 +592,12 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
       --contribution-four: #39d353;
     }
   }
+  @media (max-width: 800px) {
+    .battle-arena { --battle-zoom: 1.1; }
+  }
   @media (max-width: 640px) {
-    .base-hud-layer :global(.base-hud) { transform: translate(-23px, -50%) scale(.68); transform-origin: 23px center; }
-    .base-hud-layer :global(.base-hud.is-right) { transform: translate(calc(-100% + 23px), -50%) scale(.68); transform-origin: calc(100% - 23px) center; }
+    .base-hud-layer :global(.base-hud) { transform: translate(-28px, -50%) scale(.88); transform-origin: 28px center; }
+    .base-hud-layer :global(.base-hud.is-right) { transform: translate(calc(-100% + 28px), -50%) scale(.88); transform-origin: calc(100% - 28px) center; }
     .battle-watermark { top: 9px; right: 9px; font-size: 10px; }
     .winner-card { padding: 12px; grid-template-columns: auto auto 1fr; gap: 8px; }
     .winner-trophy { font-size: 22px; }

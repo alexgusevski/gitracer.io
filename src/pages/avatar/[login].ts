@@ -11,12 +11,17 @@ function fallbackAvatar(login: string, status = 200): Response {
   return new Response(svg, { status, headers: { 'Content-Type': 'image/svg+xml; charset=utf-8', 'Cache-Control': status === 200 ? CACHE_CONTROL : 'public, max-age=300' } });
 }
 
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async ({ params, url }) => {
   const login = normalizeHandle(params.login ?? '');
   if (!login) return fallbackAvatar('?', 404);
   const env = runtimeEnv();
   const profile = await getProfileByLogin(env.DB, login);
-  if (!profile) return fallbackAvatar(login, 404);
+  if (!profile) {
+    if (import.meta.env.DEV) {
+      return new Response(null, { status: 302, headers: { Location: new URL(`/battle-avatar/${encodeURIComponent(login)}`, url).toString() } });
+    }
+    return fallbackAvatar(login, 404);
+  }
   const key = `avatar/${profile.githubId}`;
   const cached = await env.AVATARS.get(key);
   if (cached) {

@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 
-const HANDLE = /^[a-zd](?:[a-zd-]{0,37}[a-zd])?$/i;
+const HANDLE = /^[a-z\d](?:[a-z\d-]{0,37}[a-z\d])?$/i;
 
 export const GET: APIRoute = async ({ params }) => {
   if (!import.meta.env.DEV) return new Response('Not found', { status: 404 });

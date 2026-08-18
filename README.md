@@ -31,9 +31,9 @@ npm run dev
 
 Set `GITHUB_TOKEN` and a long random `RATE_LIMIT_SECRET` in `.dev.vars`. `POSTHOG_KEY` is optional; analytics remain disabled when it is absent.
 
-### Battle lab
+### Local battle preview
 
-This branch includes a development-only contribution battle prototype. While running `npm run dev`, `/` opens the lab directly (the production homepage is unchanged). The presets use synthetic contribution histories and need no database data; avatar images are fetched through a local-only proxy.
+The homepage opens the featured live battle. If local GitHub credentials are not configured, development requests fall back to the public production race endpoint so the featured and edited lineups remain previewable. The synthetic, database-free battle lab is still available at `/battle-lab` in development.
 
 ## Verify
 

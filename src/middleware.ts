@@ -15,6 +15,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   const response = await next();
-  for (const [name, value] of Object.entries(securityHeaders)) response.headers.set(name, value);
+  for (const [name, value] of Object.entries(securityHeaders)) {
+    const headerValue = import.meta.env.DEV && name === 'Content-Security-Policy'
+      ? value.replace('; upgrade-insecure-requests', '')
+      : value;
+    response.headers.set(name, headerValue);
+  }
   return response;
 });

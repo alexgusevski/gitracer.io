@@ -1,4 +1,4 @@
-import { BATTLE_HEIGHT, BATTLE_WIDTH, type BattleSimulation } from './battle';
+import { BATTLE_HEIGHT, BATTLE_WIDTH, calculateBattleViewScale, type BattleSimulation } from './battle';
 
 const INSTANCE_STRIDE = 9;
 const LINE_STRIDE = 6;
@@ -13,12 +13,14 @@ const INSTANCE_VERTEX_SHADER = `#version 300 es
   layout(location = 5) in float a_size;
   layout(location = 6) in float a_avatar;
   uniform vec2 u_resolution;
+  uniform vec2 u_view_scale;
   out vec2 v_local;
   out vec4 v_color;
   flat out float v_avatar;
 
   void main() {
-    vec2 position = a_center + a_corner * a_size;
+    vec2 arena_center = u_resolution * 0.5;
+    vec2 position = arena_center + (a_center - arena_center) * u_view_scale + a_corner * a_size;
     vec2 clip = vec2(position.x / u_resolution.x * 2.0 - 1.0, 1.0 - position.y / u_resolution.y * 2.0);
     gl_Position = vec4(clip, 0.0, 1.0);
     v_local = a_corner;
@@ -56,10 +58,13 @@ const LINE_VERTEX_SHADER = `#version 300 es
   layout(location = 0) in vec2 a_position;
   layout(location = 1) in vec4 a_color;
   uniform vec2 u_resolution;
+  uniform vec2 u_view_scale;
   out vec4 v_color;
 
   void main() {
-    vec2 clip = vec2(a_position.x / u_resolution.x * 2.0 - 1.0, 1.0 - a_position.y / u_resolution.y * 2.0);
+    vec2 arena_center = u_resolution * 0.5;
+    vec2 position = arena_center + (a_position - arena_center) * u_view_scale;
+    vec2 clip = vec2(position.x / u_resolution.x * 2.0 - 1.0, 1.0 - position.y / u_resolution.y * 2.0);
     gl_Position = vec4(clip, 0.0, 1.0);
     v_color = a_color;
   }
@@ -122,6 +127,7 @@ export class BattleRenderer {
   private lineData = new Float32Array(0);
   private avatarReady = false;
   private avatarLoadToken = 0;
+  private viewScale = calculateBattleViewScale(BATTLE_WIDTH, BATTLE_HEIGHT);
 
   constructor(private readonly canvas: HTMLCanvasElement, simulation: BattleSimulation) {
     const gl = canvas.getContext('webgl2', { alpha: true, antialias: false, depth: false, premultipliedAlpha: false });
@@ -162,6 +168,8 @@ export class BattleRenderer {
 
   resize(): void {
     const ratio = Math.min(2, window.devicePixelRatio || 1);
+    const bounds = this.canvas.getBoundingClientRect();
+    this.viewScale = calculateBattleViewScale(bounds.width || BATTLE_WIDTH, bounds.height || BATTLE_HEIGHT);
     this.canvas.width = Math.round(BATTLE_WIDTH * ratio);
     this.canvas.height = Math.round(BATTLE_HEIGHT * ratio);
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
@@ -198,6 +206,7 @@ export class BattleRenderer {
     }
     gl.useProgram(this.instanceProgram);
     gl.uniform2f(gl.getUniformLocation(this.instanceProgram, 'u_resolution'), BATTLE_WIDTH, BATTLE_HEIGHT);
+    gl.uniform2f(gl.getUniformLocation(this.instanceProgram, 'u_view_scale'), this.viewScale.x, this.viewScale.y);
     gl.uniform1f(gl.getUniformLocation(this.instanceProgram, 'u_avatar_count'), Math.max(1, this.colors.length));
     gl.uniform1f(gl.getUniformLocation(this.instanceProgram, 'u_avatar_ready'), this.avatarReady ? 1 : 0);
     gl.activeTexture(gl.TEXTURE0);
@@ -268,9 +277,8 @@ export class BattleRenderer {
 
     const gl = this.gl;
     gl.bindTexture(gl.TEXTURE_2D, this.avatarTexture);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas);
     this.avatarReady = true;
   }
 
@@ -310,6 +318,7 @@ export class BattleRenderer {
 
     gl.useProgram(this.lineProgram);
     gl.uniform2f(gl.getUniformLocation(this.lineProgram, 'u_resolution'), BATTLE_WIDTH, BATTLE_HEIGHT);
+    gl.uniform2f(gl.getUniformLocation(this.lineProgram, 'u_view_scale'), this.viewScale.x, this.viewScale.y);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.lineBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, this.lineData.subarray(0, requiredLength), gl.DYNAMIC_DRAW);
     const stride = LINE_STRIDE * Float32Array.BYTES_PER_ELEMENT;

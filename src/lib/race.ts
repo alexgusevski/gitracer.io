@@ -40,7 +40,7 @@ export class RaceLoadError extends Error {
   }
 }
 
-interface LoadRaceOptions {
+export interface LoadRaceOptions {
   db: D1Database;
   githubToken: string;
   rateLimitSecret: string;
@@ -250,5 +250,33 @@ export async function loadRace(options: LoadRaceOptions): Promise<RaceData> {
     if (error instanceof GitHubApiError) throw new RaceLoadError(error.message, error.status);
     console.error(JSON.stringify({ event: 'race_load_error', message: error instanceof Error ? error.message : String(error) }));
     throw new RaceLoadError('GitRacer could not load this race. Please try again.', 500);
+  }
+}
+
+export async function loadRaceWithDevFallback(options: LoadRaceOptions): Promise<RaceData> {
+  try {
+    return await loadRace(options);
+  } catch (localError) {
+    if (!import.meta.env.DEV || options.forceRefresh) throw localError;
+
+    const upstream = new URL(`/api/race/${options.slug}.json`, 'https://gitracer.io');
+    if (options.rangeKey) upstream.searchParams.set('range', options.rangeKey);
+    try {
+      const response = await fetch(upstream, { headers: { Accept: 'application/json' } });
+      const payload = await response.json() as RaceData | { error?: string };
+      if (!response.ok || !('racers' in payload) || !Array.isArray(payload.racers)) throw new Error('The development race fallback was unavailable.');
+      return {
+        ...payload,
+        canRefresh: false,
+        racers: payload.racers.map((racer) => ({
+          ...racer,
+          avatarUrl: `/battle-avatar/${encodeURIComponent(racer.login)}`,
+          canRefresh: false,
+        })),
+      };
+    } catch (fallbackError) {
+      console.error(JSON.stringify({ event: 'dev_race_fallback_error', message: fallbackError instanceof Error ? fallbackError.message : String(fallbackError) }));
+      throw localError;
+    }
   }
 }

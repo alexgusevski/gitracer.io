@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { parseRaceSlug, raceSlug } from '../../../lib/handles';
-import { loadRace, RaceLoadError } from '../../../lib/race';
+import { loadRaceWithDevFallback, RaceLoadError } from '../../../lib/race';
 import { clientIp, jsonResponse, runtimeEnv } from '../../../lib/server';
 
 export const GET: APIRoute = async ({ params, request, url }) => {
@@ -8,7 +8,7 @@ export const GET: APIRoute = async ({ params, request, url }) => {
     const handles = parseRaceSlug(params.race);
     const slug = raceSlug(handles);
     const env = runtimeEnv();
-    const data = await loadRace({
+    const data = await loadRaceWithDevFallback({
       db: env.DB,
       githubToken: env.GITHUB_TOKEN,
       rateLimitSecret: env.RATE_LIMIT_SECRET,

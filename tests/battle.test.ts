@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   BattleSimulation,
+  BATTLE_HEIGHT,
+  BATTLE_WIDTH,
   FULL_DENSITY_CONTRIBUTIONS,
+  calculateBattleViewScale,
   calculateContributionGridLayout,
   calculateUnitScale,
   createBattleScenario,
@@ -26,6 +29,21 @@ function scenarioWithDailyCounts(counts: number[][], durationSeconds = 1): Battl
 }
 
 describe('battle scaling', () => {
+  it('insets the battlefield and pulls ultrawide layouts toward the center', () => {
+    const standard = calculateBattleViewScale(1280, 720);
+    const ultrawide = calculateBattleViewScale(3440, 1440);
+    const portrait = calculateBattleViewScale(720, 1280);
+    expect(standard).toEqual({ x: 0.82, y: 0.82 });
+    expect(ultrawide.x).toBeLessThan(standard.x);
+    expect(ultrawide.y).toBe(standard.y);
+    expect(portrait.x).toBe(standard.x);
+    expect(portrait.y).toBeLessThan(standard.y);
+    for (const scale of [standard, ultrawide, portrait]) {
+      expect(scale.x).toBeGreaterThanOrEqual(0.533);
+      expect(scale.y).toBeGreaterThanOrEqual(0.533);
+    }
+  });
+
   it('keeps one fighter per contribution for small battles', () => {
     const scenario = scenarioWithDailyCounts([[1, 0, 2], [0, 1, 1]]);
     expect(calculateUnitScale(scenario.contributors)).toBe(1);
@@ -97,6 +115,17 @@ describe('contribution graph layout', () => {
 });
 
 describe('battle simulation', () => {
+  it('reserves an extra base position without adding a targetable team', () => {
+    const scenario = scenarioWithDailyCounts([[2], [2], [2]]);
+    const simulation = new BattleSimulation(scenario, 9);
+    expect(simulation.teams).toHaveLength(3);
+    expect(simulation.bases).toHaveLength(3);
+    expect(simulation.emptySeat.team).toBe(-1);
+    expect(simulation.emptySeat.x).toBeCloseTo(BATTLE_WIDTH / 2);
+    expect(simulation.emptySeat.y).toBeGreaterThan(BATTLE_HEIGHT / 2);
+    expect(simulation.teams.some((team) => team.base.x === simulation.emptySeat.x && team.base.y === simulation.emptySeat.y)).toBe(false);
+  });
+
   it('is deterministic for the same scenario and seed', () => {
     const scenario = createBattleScenario('garage', 12);
     const first = new BattleSimulation(scenario, 99);

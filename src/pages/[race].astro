@@ -7,7 +7,7 @@ import TopContributors from '../components/TopContributors.astro';
 import { getLatestRaces, getTopContributors, getTopContributorYears, recordRaceView } from '../lib/db';
 import { parseRaceSlug, raceSlug } from '../lib/handles';
 import { parseRange } from '../lib/ranges';
-import { loadRace, RaceLoadError } from '../lib/race';
+import { loadRaceWithDevFallback, RaceLoadError } from '../lib/race';
 import { clientIp, runtimeEnv } from '../lib/server';
 import type { LatestRace, RaceData, TopContributor } from '../lib/types';
 
@@ -25,7 +25,7 @@ try {
   slug = raceSlug(handles);
   if (Astro.params.race !== slug) return Astro.redirect(`/${slug}${Astro.url.search}`);
   const env = runtimeEnv();
-  data = await loadRace({ db: env.DB, githubToken: env.GITHUB_TOKEN, rateLimitSecret: env.RATE_LIMIT_SECRET, handles, slug, rangeKey: Astro.url.searchParams.get('range'), clientIp: clientIp(Astro.request) });
+  data = await loadRaceWithDevFallback({ db: env.DB, githubToken: env.GITHUB_TOKEN, rateLimitSecret: env.RATE_LIMIT_SECRET, handles, slug, rangeKey: Astro.url.searchParams.get('range'), clientIp: clientIp(Astro.request) });
   Astro.locals.cfContext.waitUntil(recordRaceView(env.DB, slug, handles).catch((error) => console.error('record_race_view_failed', error)));
   const [racesResult, contributorsResult, contributorYearsResult] = await Promise.allSettled([
     getLatestRaces(env.DB, 10),

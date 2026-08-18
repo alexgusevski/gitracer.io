@@ -1,26 +1,41 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import RaceBuilder from '../components/RaceBuilder.astro';
+import RaceExperience from '../components/RaceExperience.astro';
 import LatestRaces from '../components/LatestRaces.astro';
 import TopContributors from '../components/TopContributors.astro';
 import { getLatestRaces, getTopContributors, getTopContributorYears } from '../lib/db';
+import { raceSlug } from '../lib/handles';
 import { parseRange } from '../lib/ranges';
-import { runtimeEnv } from '../lib/server';
-import type { LatestRace, TopContributor } from '../lib/types';
+import { loadRaceWithDevFallback } from '../lib/race';
+import { clientIp, runtimeEnv } from '../lib/server';
+import type { LatestRace, RaceData, TopContributor } from '../lib/types';
 
-if (import.meta.env.DEV) return Astro.redirect('/battle-lab');
-
+const FEATURED_HANDLES = ['robj3d3', 'levelsio', 'marclou', 'alexgusevski', 'jackfriks'];
+const featuredSlug = raceSlug(FEATURED_HANDLES);
+let featuredRace: RaceData | null = null;
 let races: LatestRace[] = [];
 let contributors: TopContributor[] = [];
 const currentYear = new Date().getUTCFullYear();
 const contributorRange = parseRange(Astro.url.searchParams.get('contributorsRange'), []);
 let contributorYears = [currentYear, ...contributorRange.years];
-const db = runtimeEnv().DB;
-const [racesResult, contributorsResult, contributorYearsResult] = await Promise.allSettled([
-  getLatestRaces(db, 10),
-  getTopContributors(db, 10, contributorRange),
-  getTopContributorYears(db),
+const env = runtimeEnv();
+const [featuredResult, racesResult, contributorsResult, contributorYearsResult] = await Promise.allSettled([
+  loadRaceWithDevFallback({
+    db: env.DB,
+    githubToken: env.GITHUB_TOKEN,
+    rateLimitSecret: env.RATE_LIMIT_SECRET,
+    handles: FEATURED_HANDLES,
+    slug: featuredSlug,
+    rangeKey: Astro.url.searchParams.get('range'),
+    clientIp: clientIp(Astro.request),
+  }),
+  getLatestRaces(env.DB, 10),
+  getTopContributors(env.DB, 10, contributorRange),
+  getTopContributorYears(env.DB),
 ]);
+if (featuredResult.status === 'fulfilled') featuredRace = featuredResult.value;
+else console.error('featured_race_unavailable', featuredResult.reason);
 if (racesResult.status === 'fulfilled') races = racesResult.value;
 else console.error('latest_races_unavailable', racesResult.reason);
 if (contributorsResult.status === 'fulfilled') contributors = contributorsResult.value;
@@ -37,18 +52,20 @@ const schema = {
 };
 ---
 
-<BaseLayout>
+<BaseLayout hideHeader>
   <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(schema)}></script>
-  <section class="hero shell">
-    <div class="hero__badge"><span>●</span> free · open source · no sign-in</div>
-    <h1>Race your GitHub<br /><span>contribution history.</span></h1>
-    <p class="hero__lede">Put up to 12 public profiles on one fair, cumulative graph. Pick a period, watch the lines run, then share the URL.</p>
-    <RaceBuilder />
-    <div class="hero__proof">
-      <span><b>01</b> enter handles</span><i>→</i><span><b>02</b> pick a period</span><i>→</i><span><b>03</b> share the race</span>
-    </div>
-  </section>
-  <section class="ticker" aria-label="GitRacer features"><div><span>LAST 30 DAYS</span><i>◆</i><span>ANY CALENDAR YEAR</span><i>◆</i><span>LIFETIME</span><i>◆</i><span>UP TO 12 RACERS</span><i>◆</i><span>PUBLIC SHARE URLS</span><i>◆</i><span>LAST 30 DAYS</span><i>◆</i><span>ANY CALENDAR YEAR</span><i>◆</i><span>LIFETIME</span></div></section>
+  {featuredRace ? (
+    <section class="home-battle-hero" aria-label="Featured GitHub contribution battle">
+      <RaceExperience data={featuredRace} featured />
+    </section>
+  ) : (
+    <section class="hero shell">
+      <div class="hero__badge"><span>●</span> free · open source · no sign-in</div>
+      <h1>Race your GitHub<br /><span>contribution history.</span></h1>
+      <p class="hero__lede">Put up to 12 public profiles into a contribution battle, then share the lineup.</p>
+      <RaceBuilder />
+    </section>
+  )}
   <div class="shell home-content">
     <LatestRaces races={races} />
     <TopContributors contributors={contributors} years={contributorYears} range={contributorRange} />
