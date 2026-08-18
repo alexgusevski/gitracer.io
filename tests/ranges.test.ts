@@ -21,4 +21,8 @@ describe('calendar ranges', () => {
     expect(parseRange('year:1999', [], now).key).toBe('year:2026');
     expect(parseRange('year:2099', [], now).key).toBe('year:2026');
   });
+
+  it('defaults period filters to the current calendar year', () => {
+    expect(parseRange(null, [], now).key).toBe('year:2026');
+  });
 });

@@ -140,6 +140,7 @@ img { display: block; max-width: 100%; }
 .home-content { padding: 76px 0 100px; }
 .section-heading { margin-bottom: 22px; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
 .section-heading h2 { margin: 4px 0 0; font-family: var(--display); font-size: 34px; letter-spacing: -.045em; }
+.section-heading__tools { display: flex; align-items: center; gap: 18px; }
 .status-dot { display: flex; align-items: center; gap: 7px; color: var(--muted); font-family: var(--mono); font-size: 11px; }
 .status-dot i, .live-pip { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: var(--race); box-shadow: 0 0 0 4px color-mix(in srgb, var(--race) 12%, transparent); }
 .race-list { overflow: hidden; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--panel); box-shadow: var(--shadow); }
@@ -193,9 +194,9 @@ img { display: block; max-width: 100%; }
 .race-action-icon { width: 44px; min-width: 44px; padding: 0; }
 .race-action-icon > span { width: 20px; height: 20px; display: grid; place-items: center; color: inherit; font-size: 20px; line-height: 1; }
 .race-toolbar { margin-top: 38px; min-height: 56px; padding: 9px 12px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border: 1px solid var(--line-strong); border-bottom: 0; border-radius: 10px 10px 0 0; background: var(--panel); font-family: var(--mono); }
-.race-toolbar label { display: flex; align-items: center; gap: 10px; }
-.race-toolbar label > span { color: var(--muted); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
-.race-toolbar select { min-height: 36px; padding: 0 38px 0 12px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--paper); color: var(--ink); cursor: pointer; }
+.race-toolbar label, .contributor-filter label { display: flex; align-items: center; gap: 10px; }
+.race-toolbar label > span, .contributor-filter label > span { color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+.race-toolbar select, .contributor-filter select { min-height: 36px; padding: 0 38px 0 12px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--paper); color: var(--ink); cursor: pointer; }
 .race-freshness { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 10px; }
 .cache-light { width: 7px; height: 7px; border-radius: 50%; background: var(--race); }
 .chart-shell { position: relative; min-height: 470px; border: 1px solid var(--line-strong); border-radius: 0 0 10px 10px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
@@ -323,6 +324,9 @@ img { display: block; max-width: 100%; }
   .home-content { padding-top: 56px; }
   .race-page-tables { padding-top: 56px; }
   .section-heading { align-items: flex-start; }
+  .section-heading__tools { align-items: flex-end; }
+  .top-contributors .section-heading { flex-direction: column; align-items: stretch; gap: 16px; }
+  .top-contributors .section-heading__tools { align-items: flex-start; }
   .section-heading h2 { font-size: 28px; }
   .status-dot { display: none; }
   .race-page { padding-top: 42px; }

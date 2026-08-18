@@ -219,7 +219,9 @@ const leaderText = data.racers.length === 1
         renderChart();
         updateCopy();
         window.dispatchEvent(new CustomEvent('gitracer:battle-data', { detail: { slug: root.dataset.slug, data: state } }));
-        history.replaceState(null, '', `${location.pathname}?range=${encodeURIComponent(range)}`);
+        const url = new URL(location.href);
+        url.searchParams.set('range', range);
+        history.replaceState(null, '', `${url.pathname}${url.search}`);
         window.posthog?.capture?.(refresh ? 'race_refreshed' : 'race_range_changed', { range, racer_count: state.racers.length });
       } catch (error) {
         if (errorBox) errorBox.textContent = error instanceof Error ? error.message : 'Could not load this race.';

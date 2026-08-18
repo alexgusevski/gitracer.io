@@ -1,4 +1,5 @@
-import type { LatestRace, ProfileRecord, ProfileYearRecord, TopContributor } from './types';
+import { parseRange } from './ranges';
+import type { LatestRace, ProfileRecord, ProfileYearRecord, RangeDefinition, TopContributor } from './types';
 
 interface ProfileRow {
   github_id: string;
@@ -144,22 +145,81 @@ export async function getLatestRaces(db: D1Database, limit = 10): Promise<Latest
   }));
 }
 
-export async function getTopContributors(db: D1Database, limit = 10): Promise<TopContributor[]> {
+export async function getTopContributorYears(db: D1Database, now = new Date()): Promise<number[]> {
+  const currentYear = now.getUTCFullYear();
   const result = await db
-    .prepare(`
-      SELECT
-        p.login,
-        p.display_name,
-        SUM(py.total) AS total_contributions,
-        COUNT(py.year) AS cached_year_count
-      FROM profiles p
-      INNER JOIN profile_years py ON py.github_id = p.github_id
-      GROUP BY p.github_id, p.login, p.display_name
-      ORDER BY total_contributions DESC, p.login COLLATE NOCASE ASC
-      LIMIT ?
-    `)
-    .bind(Math.max(1, Math.min(limit, 20)))
-    .all<{ login: string; display_name: string | null; total_contributions: number; cached_year_count: number }>();
+    .prepare('SELECT DISTINCT year FROM profile_years WHERE year BETWEEN 2008 AND ? ORDER BY year DESC')
+    .bind(currentYear)
+    .all<{ year: number }>();
+  return result.results.map((row) => row.year);
+}
+
+export async function getTopContributors(db: D1Database, limit = 10, range: RangeDefinition = parseRange(null, [])): Promise<TopContributor[]> {
+  const safeLimit = Math.max(1, Math.min(limit, 20));
+  let result: D1Result<{ login: string; display_name: string | null; total_contributions: number; cached_year_count: number }>;
+
+  if (range.key === 'lifetime') {
+    result = await db
+      .prepare(`
+        SELECT
+          p.login,
+          p.display_name,
+          SUM(py.total) AS total_contributions,
+          COUNT(py.year) AS cached_year_count
+        FROM profiles p
+        INNER JOIN profile_years py ON py.github_id = p.github_id
+        GROUP BY p.github_id, p.login, p.display_name
+        ORDER BY total_contributions DESC, p.login COLLATE NOCASE ASC
+        LIMIT ?
+      `)
+      .bind(safeLimit)
+      .all<{ login: string; display_name: string | null; total_contributions: number; cached_year_count: number }>();
+  } else if (range.key.startsWith('year:')) {
+    result = await db
+      .prepare(`
+        SELECT
+          p.login,
+          p.display_name,
+          selected_year.total AS total_contributions,
+          cached_years.cached_year_count
+        FROM profiles p
+        INNER JOIN profile_years selected_year ON selected_year.github_id = p.github_id AND selected_year.year = ?
+        INNER JOIN (
+          SELECT github_id, COUNT(*) AS cached_year_count
+          FROM profile_years
+          GROUP BY github_id
+        ) cached_years ON cached_years.github_id = p.github_id
+        ORDER BY total_contributions DESC, p.login COLLATE NOCASE ASC
+        LIMIT ?
+      `)
+      .bind(range.years[0], safeLimit)
+      .all<{ login: string; display_name: string | null; total_contributions: number; cached_year_count: number }>();
+  } else {
+    result = await db
+      .prepare(`
+        SELECT
+          p.login,
+          p.display_name,
+          SUM(CAST(json_extract(day.value, '$.count') AS INTEGER)) AS total_contributions,
+          cached_years.cached_year_count
+        FROM profiles p
+        INNER JOIN profile_years py ON py.github_id = p.github_id
+        CROSS JOIN json_each(py.days_json) day
+        INNER JOIN (
+          SELECT github_id, COUNT(*) AS cached_year_count
+          FROM profile_years
+          GROUP BY github_id
+        ) cached_years ON cached_years.github_id = p.github_id
+        WHERE py.year BETWEEN ? AND ?
+          AND json_extract(day.value, '$.date') BETWEEN ? AND ?
+        GROUP BY p.github_id, p.login, p.display_name, cached_years.cached_year_count
+        ORDER BY total_contributions DESC, p.login COLLATE NOCASE ASC
+        LIMIT ?
+      `)
+      .bind(range.years[0], range.years.at(-1), range.start, range.end, safeLimit)
+      .all<{ login: string; display_name: string | null; total_contributions: number; cached_year_count: number }>();
+  }
+
   return result.results.map((row) => ({
     login: row.login,
     displayName: row.display_name,

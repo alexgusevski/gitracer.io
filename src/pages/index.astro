@@ -3,7 +3,8 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import RaceBuilder from '../components/RaceBuilder.astro';
 import LatestRaces from '../components/LatestRaces.astro';
 import TopContributors from '../components/TopContributors.astro';
-import { getLatestRaces, getTopContributors } from '../lib/db';
+import { getLatestRaces, getTopContributors, getTopContributorYears } from '../lib/db';
+import { parseRange } from '../lib/ranges';
 import { runtimeEnv } from '../lib/server';
 import type { LatestRace, TopContributor } from '../lib/types';
 
@@ -11,12 +12,22 @@ if (import.meta.env.DEV) return Astro.redirect('/battle-lab');
 
 let races: LatestRace[] = [];
 let contributors: TopContributor[] = [];
+const currentYear = new Date().getUTCFullYear();
+const contributorRange = parseRange(Astro.url.searchParams.get('contributorsRange'), []);
+let contributorYears = [currentYear, ...contributorRange.years];
 const db = runtimeEnv().DB;
-const [racesResult, contributorsResult] = await Promise.allSettled([getLatestRaces(db, 10), getTopContributors(db, 10)]);
+const [racesResult, contributorsResult, contributorYearsResult] = await Promise.allSettled([
+  getLatestRaces(db, 10),
+  getTopContributors(db, 10, contributorRange),
+  getTopContributorYears(db),
+]);
 if (racesResult.status === 'fulfilled') races = racesResult.value;
 else console.error('latest_races_unavailable', racesResult.reason);
 if (contributorsResult.status === 'fulfilled') contributors = contributorsResult.value;
 else console.error('top_contributors_unavailable', contributorsResult.reason);
+if (contributorYearsResult.status === 'fulfilled') contributorYears.push(...contributorYearsResult.value);
+else console.error('top_contributor_years_unavailable', contributorYearsResult.reason);
+contributorYears = [...new Set(contributorYears)].sort((a, b) => b - a);
 const schema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
@@ -40,7 +51,7 @@ const schema = {
   <section class="ticker" aria-label="GitRacer features"><div><span>LAST 30 DAYS</span><i>◆</i><span>ANY CALENDAR YEAR</span><i>◆</i><span>LIFETIME</span><i>◆</i><span>UP TO 12 RACERS</span><i>◆</i><span>PUBLIC SHARE URLS</span><i>◆</i><span>LAST 30 DAYS</span><i>◆</i><span>ANY CALENDAR YEAR</span><i>◆</i><span>LIFETIME</span></div></section>
   <div class="shell home-content">
     <LatestRaces races={races} />
-    <TopContributors contributors={contributors} />
+    <TopContributors contributors={contributors} years={contributorYears} range={contributorRange} />
     <section class="how-strip">
       <span class="eyebrow">what gets counted?</span>
       <div><h2>Whatever GitHub puts in the squares.</h2><p>Commits, pull requests, issues, and reviews are combined exactly as GitHub reports them. We cache the public result; we never ask for repository access.</p><a href="/how-it-works">read the methodology →</a></div>
