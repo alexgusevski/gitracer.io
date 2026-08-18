@@ -147,8 +147,9 @@ img { display: block; max-width: 100%; }
 .race-list__row:last-child { border-bottom: 0; }
 .race-list__row:hover { padding-left: 23px; background: color-mix(in srgb, var(--green) 6%, var(--panel)); }
 .race-list__rank { color: var(--muted); font-family: var(--mono); font-size: 11px; }
-.avatar-stack { display: flex; padding-left: 7px; }
-.avatar-stack img { width: 32px; height: 32px; margin-left: -7px; border: 2px solid var(--panel); border-radius: 50%; object-fit: cover; background: var(--paper-2); }
+.avatar-stack { --avatar-overlap: -7px; --avatar-overlap-compact: -7px; display: flex; }
+.avatar-stack img { width: 32px; height: 32px; flex: 0 0 auto; border: 2px solid var(--panel); border-radius: 50%; object-fit: cover; background: var(--paper-2); }
+.avatar-stack img + img { margin-left: var(--avatar-overlap); }
 .race-list__names { overflow: hidden; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .race-list__meta { display: flex; gap: 22px; color: var(--muted); font-family: var(--mono); font-size: 11px; }
 .race-list__arrow { color: var(--green); }
@@ -337,6 +338,7 @@ img { display: block; max-width: 100%; }
   .racer-card__stats { justify-content: space-between; border-top: 1px solid var(--line); padding-top: 12px; }
   .race-list__names { font-size: 11px; }
   .avatar-stack img { width: 27px; height: 27px; }
+  .avatar-stack img + img { margin-left: var(--avatar-overlap-compact); }
   .contributor-table th, .contributor-table td { padding-inline: 10px; }
   .contributor-table__rank { width: 40px; }
   .contributor-table__total { width: auto; font-size: 15px; }

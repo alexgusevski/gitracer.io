@@ -10,6 +10,13 @@ const relative = (iso: string) => {
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   return `${Math.floor(seconds / 86400)}d ago`;
 };
+const avatarStackStyle = (count: number) => {
+  if (count <= 4) return undefined;
+
+  const overlap = 32 - (107 - 32) / (count - 1);
+  const compactOverlap = 27 - (87 - 27) / (count - 1);
+  return `--avatar-overlap: -${overlap}px; --avatar-overlap-compact: -${compactOverlap}px`;
+};
 ---
 
 <section class="latest-races" aria-labelledby="latest-title">
@@ -25,8 +32,8 @@ const relative = (iso: string) => {
       {races.map((race, index) => (
         <a class="race-list__row" href={`/${race.slug}`} data-track="latest_race_opened" data-racer-count={race.handles.length}>
           <span class="race-list__rank">{String(index + 1).padStart(2, '0')}</span>
-          <span class="avatar-stack" aria-hidden="true">
-            {race.handles.slice(0, 4).map((handle) => <img src={`/avatar/${handle}`} alt="" loading="lazy" />)}
+          <span class="avatar-stack" aria-hidden="true" style={avatarStackStyle(race.handles.length)}>
+            {race.handles.map((handle) => <img src={`/avatar/${handle}`} alt="" loading="lazy" width="32" height="32" />)}
           </span>
           <span class="race-list__names">{race.handles.map((handle) => `@${handle}`).join(' vs ')}</span>
           <span class="race-list__meta"><time datetime={race.lastViewedAt}>{relative(race.lastViewedAt)}</time><span>{race.viewCount.toLocaleString()} views</span></span>
