@@ -31,9 +31,11 @@ function scenarioWithDailyCounts(counts: number[][], durationSeconds = 1): Battl
 describe('battle scaling', () => {
   it('insets the battlefield and pulls ultrawide layouts toward the center', () => {
     const standard = calculateBattleViewScale(1280, 720);
+    const standalone = calculateBattleViewScale(1280, 720, 1);
     const ultrawide = calculateBattleViewScale(3440, 1440);
     const portrait = calculateBattleViewScale(720, 1280);
     expect(standard).toEqual({ x: 0.82, y: 0.82 });
+    expect(standalone).toEqual({ x: 1, y: 0.82 });
     expect(ultrawide.x).toBeLessThan(standard.x);
     expect(ultrawide.y).toBe(standard.y);
     expect(portrait.x).toBe(standard.x);

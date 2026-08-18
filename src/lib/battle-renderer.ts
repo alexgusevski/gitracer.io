@@ -129,7 +129,7 @@ export class BattleRenderer {
   private avatarLoadToken = 0;
   private viewScale = calculateBattleViewScale(BATTLE_WIDTH, BATTLE_HEIGHT);
 
-  constructor(private readonly canvas: HTMLCanvasElement, simulation: BattleSimulation) {
+  constructor(private readonly canvas: HTMLCanvasElement, simulation: BattleSimulation, private readonly horizontalInset?: number) {
     const gl = canvas.getContext('webgl2', { alpha: true, antialias: false, depth: false, premultipliedAlpha: false });
     if (!gl) throw new Error('This prototype needs WebGL 2.');
     this.gl = gl;
@@ -169,7 +169,7 @@ export class BattleRenderer {
   resize(): void {
     const ratio = Math.min(2, window.devicePixelRatio || 1);
     const bounds = this.canvas.getBoundingClientRect();
-    this.viewScale = calculateBattleViewScale(bounds.width || BATTLE_WIDTH, bounds.height || BATTLE_HEIGHT);
+    this.viewScale = calculateBattleViewScale(bounds.width || BATTLE_WIDTH, bounds.height || BATTLE_HEIGHT, this.horizontalInset);
     this.canvas.width = Math.round(BATTLE_WIDTH * ratio);
     this.canvas.height = Math.round(BATTLE_HEIGHT * ratio);
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);

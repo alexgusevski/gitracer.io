@@ -11,13 +11,13 @@ export interface BattleViewScale {
   y: number;
 }
 
-export function calculateBattleViewScale(width: number, height: number): BattleViewScale {
+export function calculateBattleViewScale(width: number, height: number, horizontalInset = BATTLE_VIEW_INSET): BattleViewScale {
   const logicalAspect = BATTLE_WIDTH / BATTLE_HEIGHT;
   const viewportAspect = Math.max(1, width) / Math.max(1, height);
   const aspectScaleX = Math.min(1, logicalAspect / viewportAspect);
   const aspectScaleY = Math.min(1, viewportAspect / logicalAspect);
   return {
-    x: Math.max(BATTLE_VIEW_MIN_AXIS_SCALE, aspectScaleX) * BATTLE_VIEW_INSET,
+    x: Math.max(BATTLE_VIEW_MIN_AXIS_SCALE, aspectScaleX) * horizontalInset,
     y: Math.max(BATTLE_VIEW_MIN_AXIS_SCALE, aspectScaleY) * BATTLE_VIEW_INSET,
   };
 }

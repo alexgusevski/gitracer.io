@@ -60,9 +60,10 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
 
     let scenario = JSON.parse(scenarioJson?.textContent || '{}') as BattleScenario;
     let simulation = new BattleSimulation(scenario, 1);
+    const horizontalViewInset = root.classList.contains('battle-arena--hero') ? undefined : 1;
     let renderer: BattleRenderer;
     try {
-      renderer = new BattleRenderer(canvas, simulation);
+      renderer = new BattleRenderer(canvas, simulation, horizontalViewInset);
     } catch {
       root.classList.add('is-unavailable');
       const live = root.querySelector('[data-live-status]');
@@ -111,7 +112,7 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
     };
 
     const positionHud = (hud: HTMLElement, base: { x: number; y: number }) => {
-      const viewScale = calculateBattleViewScale(battleField.clientWidth, battleField.clientHeight);
+      const viewScale = calculateBattleViewScale(battleField.clientWidth, battleField.clientHeight, horizontalViewInset);
       const x = 0.5 + (base.x / BATTLE_WIDTH - 0.5) * viewScale.x;
       const y = 0.5 + (base.y / BATTLE_HEIGHT - 0.5) * viewScale.y;
       hud.style.left = `${x * 100}%`;
@@ -240,9 +241,19 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
       addInput.addEventListener('input', syncPlaceholder);
       const addSubmit = document.createElement('button');
       addSubmit.type = 'submit';
+      addSubmit.dataset.addSubmit = '';
       addSubmit.setAttribute('aria-label', 'Add racer');
       addSubmit.title = 'Add racer';
-      addSubmit.textContent = '↵';
+      const addSubmitIcon = document.createElement('span');
+      addSubmitIcon.dataset.addSubmitIcon = '';
+      addSubmitIcon.setAttribute('aria-hidden', 'true');
+      addSubmitIcon.textContent = '↵';
+      const addSpinner = document.createElement('span');
+      addSpinner.className = 'base-add-spinner';
+      addSpinner.dataset.addSpinner = '';
+      addSpinner.setAttribute('aria-hidden', 'true');
+      addSpinner.hidden = true;
+      addSubmit.append(addSubmitIcon, addSpinner);
       const addError = document.createElement('small');
       addError.dataset.addError = '';
       addError.setAttribute('role', 'alert');
@@ -413,27 +424,51 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
       navigateToLineup(handles);
     });
 
-    baseHudLayer.addEventListener('submit', (event) => {
+    const setAddSubmitting = (form: HTMLFormElement, submitting: boolean) => {
+      if (submitting) form.dataset.submitting = 'true';
+      else delete form.dataset.submitting;
+      const submit = form.querySelector('[data-add-submit]');
+      if (!(submit instanceof HTMLButtonElement)) return;
+      submit.disabled = submitting;
+      if (submitting) submit.setAttribute('aria-busy', 'true');
+      else submit.removeAttribute('aria-busy');
+      const icon = submit.querySelector('[data-add-submit-icon]');
+      const spinner = submit.querySelector('[data-add-spinner]');
+      if (icon instanceof HTMLElement) icon.hidden = submitting;
+      if (spinner instanceof HTMLElement) spinner.hidden = !submitting;
+    };
+
+    const waitForSpinnerPaint = () => new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+
+    baseHudLayer.addEventListener('submit', async (event) => {
       const form = event.target;
       if (!(form instanceof HTMLFormElement) || !form.matches('[data-add-form]')) return;
       event.preventDefault();
+      if (form.dataset.submitting === 'true') return;
       const input = form.querySelector('[data-add-input]');
       const error = form.querySelector('[data-add-error]');
       if (!(input instanceof HTMLElement)) return;
+      setAddSubmitting(form, true);
+      await waitForSpinnerPaint();
       const handle = normalizeHandle(input.textContent || '');
       const handles = scenario.contributors.map((contributor) => contributor.login);
       if (error) error.textContent = '';
       if (handles.length >= MAX_RACERS) {
         if (error) error.textContent = `This race already has ${MAX_RACERS} people.`;
+        setAddSubmitting(form, false);
         return;
       }
       if (!handle) {
         if (error) error.textContent = 'Enter a valid GitHub handle.';
+        setAddSubmitting(form, false);
         input.focus();
         return;
       }
       if (handles.includes(handle)) {
         if (error) error.textContent = `@${handle} is already racing.`;
+        setAddSubmitting(form, false);
         input.focus();
         return;
       }
@@ -556,11 +591,15 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
   .base-hud-layer :global(.base-add-form [data-add-input]) { grid-column: 1; grid-row: 1; min-width: 0; width: 100%; height: 42px; padding: 0 11px; border: 0; border-radius: 6px; font-family: var(--mono); font-size: 11px; line-height: 42px; white-space: nowrap; }
   .base-hud-layer :global(.base-add-placeholder) { z-index: 0; overflow: hidden; color: var(--muted); opacity: .72; pointer-events: none; }
   .base-hud-layer :global(.base-add-form [data-add-input]) { z-index: 1; display: block; overflow: hidden; outline: 0; background: transparent; caret-color: var(--ink); color: var(--ink); }
-  .base-hud-layer :global(.base-add-form button) { width: 42px; height: 42px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-family: var(--mono); font-size: 18px; cursor: pointer; transition: background-color .14s ease, color .14s ease; }
+  .base-hud-layer :global(.base-add-form button) { width: 42px; height: 42px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-family: var(--mono); font-size: 18px; cursor: pointer; transition: background-color .14s ease, color .14s ease; }
+  .base-hud-layer :global(.base-add-form button > span) { grid-area: 1 / 1; }
   .base-hud-layer :global(.base-add-form button:hover) { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
+  .base-hud-layer :global(.base-add-form button:disabled) { cursor: wait; opacity: 1; }
+  .base-hud-layer :global(.base-add-spinner) { width: 15px; height: 15px; display: block; border: 2px solid color-mix(in srgb, var(--muted) 38%, transparent); border-top-color: var(--ink); border-radius: 50%; animation: battle-submit-spin .65s linear infinite; }
   .base-hud-layer :global(.base-add-form [data-add-input]:focus-visible),
   .base-hud-layer :global(.base-add-form button:focus-visible) { outline: 0; }
   .base-hud-layer :global(.base-add-form small) { position: absolute; top: calc(100% + 5px); left: 3px; min-height: 10px; color: #e05252; font-size: 8px; line-height: 1.3; white-space: nowrap; }
+  @keyframes battle-submit-spin { to { transform: rotate(1turn); } }
   .base-hud-layer :global(.base-hud.is-dead) { filter: grayscale(.75); }
   .base-hud-layer :global(.base-hud.is-dead .base-profile img) { display: none; }
   .base-hud-layer :global(.base-hud.is-dead .base-profile i) { display: block; }
