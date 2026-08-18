@@ -41,7 +41,7 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
 
 <script>
   // @ts-nocheck -- this client-only renderer consumes server-validated race JSON and custom mode events.
-  import { BATTLE_HEIGHT, BATTLE_WIDTH, BattleSimulation, calculateBattleViewScale, calculateContributionGridLayout, createBattleScenarioFromRace, type BattleHudState, type BattleScenario } from '../lib/battle';
+  import { BATTLE_HEIGHT, BATTLE_WIDTH, EMBEDDED_BATTLE_HORIZONTAL_INSET, BattleSimulation, calculateBattleViewScale, calculateContributionGridLayout, createBattleScenarioFromRace, type BattleHudState, type BattleScenario } from '../lib/battle';
   import { BattleRenderer } from '../lib/battle-renderer';
   import { MAX_RACERS, normalizeHandle } from '../lib/handles';
 
@@ -60,7 +60,7 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
 
     let scenario = JSON.parse(scenarioJson?.textContent || '{}') as BattleScenario;
     let simulation = new BattleSimulation(scenario, 1);
-    const horizontalViewInset = root.classList.contains('battle-arena--hero') ? undefined : 1;
+    const horizontalViewInset = root.classList.contains('battle-arena--hero') ? undefined : EMBEDDED_BATTLE_HORIZONTAL_INSET;
     let renderer: BattleRenderer;
     try {
       renderer = new BattleRenderer(canvas, simulation, horizontalViewInset);

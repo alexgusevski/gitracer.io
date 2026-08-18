@@ -3,6 +3,7 @@ import type { ContributionLevel, RaceData } from './types';
 export const BATTLE_WIDTH = 1280;
 export const BATTLE_HEIGHT = 720;
 export const FULL_DENSITY_CONTRIBUTIONS = 12_000;
+export const EMBEDDED_BATTLE_HORIZONTAL_INSET = 0.92;
 const BATTLE_VIEW_INSET = 0.82;
 const BATTLE_VIEW_MIN_AXIS_SCALE = 0.65;
 
