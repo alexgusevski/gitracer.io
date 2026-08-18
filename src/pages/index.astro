@@ -66,6 +66,11 @@ const schema = {
       <RaceBuilder />
     </section>
   )}
+  {featuredRace && (
+    <section class="shell home-lineup-builder" aria-label="Create a GitHub contribution race">
+      <RaceBuilder initialHandles={featuredRace.racers.map((racer) => racer.login)} compact heading="Change the lineup" />
+    </section>
+  )}
   <div class="shell home-content">
     <LatestRaces races={races} />
     <TopContributors contributors={contributors} years={contributorYears} range={contributorRange} />
