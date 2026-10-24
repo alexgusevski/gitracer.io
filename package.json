@@ -28,7 +28,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply gitracer-db --remote"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^14.2.1",
+    "@astrojs/cloudflare": "^14.4.2",
     "@cf-wasm/resvg": "0.3.5",
     "@cf-wasm/satori": "0.3.7",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
@@ -36,14 +36,14 @@
     "astro": "^7.2.1",
     "domhandler": "5.0.3",
     "htmlparser2": "9.1.0",
-    "react": "^19.2.4"
+    "react": "^19.3.1"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.6",
-    "@types/node": "^26.2.0",
-    "@types/react": "^19.2.14",
+    "@astrojs/check": "^0.9.12",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18",
+    "vitest": "^4.1.12",
     "wrangler": "^4.72.0"
   }
 }
