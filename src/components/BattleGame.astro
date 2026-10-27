@@ -374,14 +374,9 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
       form?.closest('.base-hud')?.classList.remove('is-editing');
     };
 
-    const navigateToLineup = (handles: string[]) => {
-      if (!handles.length) {
-        window.location.assign('/');
-        return;
-      }
-      const destination = new URL(`/${handles.join('+')}`, window.location.origin);
-      if (root.dataset.rangeKey) destination.searchParams.set('range', root.dataset.rangeKey);
-      window.location.assign(`${destination.pathname}${destination.search}`);
+    // Changing the lineup needs the (offline) backend, so show the notice instead of navigating.
+    const navigateToLineup = (_handles: string[], trigger?: Element | null) => {
+      window.gitracerOffline?.(trigger);
     };
 
     baseHudLayer.addEventListener('click', (event) => {
@@ -420,8 +415,7 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
       if (!(remove instanceof HTMLButtonElement)) return;
       const login = remove.dataset.removeContributor;
       const handles = scenario.contributors.map((contributor) => contributor.login).filter((handle) => handle !== login);
-      window.posthog?.capture?.('race_participant_removed', { racer_count: handles.length + 1 });
-      navigateToLineup(handles);
+      navigateToLineup(handles, remove);
     });
 
     const setAddSubmitting = (form: HTMLFormElement, submitting: boolean) => {
@@ -472,8 +466,8 @@ const safeScenario = JSON.stringify(scenario).replace(/</g, '\\u003c');
         input.focus();
         return;
       }
-      window.posthog?.capture?.('race_participant_added', { racer_count: handles.length + 1 });
-      navigateToLineup([...handles, handle]);
+      setAddSubmitting(form, false);
+      navigateToLineup([...handles, handle], input);
     });
 
     baseHudLayer.addEventListener('keydown', (event) => {

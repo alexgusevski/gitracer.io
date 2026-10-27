@@ -28,16 +28,13 @@ describe('race assembly', () => {
   it('fills missing dates with zero and detects streaks', () => {
     const records = new Map([['A:2026', year('A', [['2026-08-11', 2], ['2026-08-12', 1], ['2026-08-13', 0]])]]);
     const data = assembleRaceData('alpha', [profiles[0]!], records, 'last30', now);
-    expect(data.racers[0]).toMatchObject({ total: 3, activeDays: 2, longestStreak: 2, avatarUrl: '/avatar/alpha' });
+    expect(data.racers[0]).toMatchObject({ total: 3, activeDays: 2, longestStreak: 2, avatarUrl: 'https://avatars.example/a' });
     expect(data.racers[0]?.days.filter((day) => day.count === 0)).toHaveLength(28);
   });
 
-  it('permits manual refresh only when current-year data is at least three hours old', () => {
-    const fresh = new Map([['A:2026', year('A', [], '2026-08-13T10:00:00.000Z')]]);
+  it('never offers a refresh, because the backend is offline', () => {
     const stale = new Map([['A:2026', year('A', [], '2026-08-13T08:00:00.000Z')]]);
-    expect(assembleRaceData('alpha', [profiles[0]!], fresh, 'year:2026', now).canRefresh).toBe(false);
-    expect(assembleRaceData('alpha', [profiles[0]!], stale, 'year:2026', now).canRefresh).toBe(true);
-    expect(assembleRaceData('alpha', [profiles[0]!], stale, 'year:2025', now).canRefresh).toBe(false);
+    expect(assembleRaceData('alpha', [profiles[0]!], stale, 'year:2026', now).canRefresh).toBe(false);
   });
 
   it('assigns a distinct chart color to each of twelve racers', () => {

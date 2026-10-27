@@ -3,49 +3,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import RaceBuilder from '../components/RaceBuilder.astro';
 import RaceExperience from '../components/RaceExperience.astro';
 import ActivityTables from '../components/ActivityTables.astro';
-import { getLatestRaces, getTopContributors, getTopContributorYears, getTrendingRaces } from '../lib/db';
-import { raceSlug } from '../lib/handles';
-import { parseRange } from '../lib/ranges';
-import { loadRaceWithDevFallback } from '../lib/race';
-import { clientIp, runtimeEnv } from '../lib/server';
-import type { LatestRace, RaceData, TopContributor, TrendingRace } from '../lib/types';
+import { contributorRange, latestRaces, raceData, SNAPSHOT_LABEL, topContributors, trendingRaces } from '../lib/snapshot';
 
 const FEATURED_HANDLES = ['robj3d3', 'levelsio', 'marclou', 'alexgusevski', 'jackfriks'];
-const featuredSlug = raceSlug(FEATURED_HANDLES);
-let featuredRace: RaceData | null = null;
-let races: LatestRace[] = [];
-let trendingRaces: TrendingRace[] = [];
-let contributors: TopContributor[] = [];
-const currentYear = new Date().getUTCFullYear();
-const contributorRange = parseRange(Astro.url.searchParams.get('contributorsRange'), []);
-let contributorYears = [currentYear, ...contributorRange.years];
-const env = runtimeEnv();
-const [featuredResult, racesResult, trendingResult, contributorsResult, contributorYearsResult] = await Promise.allSettled([
-  loadRaceWithDevFallback({
-    db: env.DB,
-    githubToken: env.GITHUB_TOKEN,
-    rateLimitSecret: env.RATE_LIMIT_SECRET,
-    handles: FEATURED_HANDLES,
-    slug: featuredSlug,
-    rangeKey: Astro.url.searchParams.get('range'),
-    clientIp: clientIp(Astro.request),
-  }),
-  getLatestRaces(env.DB, 10),
-  getTrendingRaces(env.DB, 10),
-  getTopContributors(env.DB, 10, contributorRange),
-  getTopContributorYears(env.DB),
-]);
-if (featuredResult.status === 'fulfilled') featuredRace = featuredResult.value;
-else console.error('featured_race_unavailable', featuredResult.reason);
-if (racesResult.status === 'fulfilled') races = racesResult.value;
-else console.error('latest_races_unavailable', racesResult.reason);
-if (trendingResult.status === 'fulfilled') trendingRaces = trendingResult.value;
-else console.error('trending_races_unavailable', trendingResult.reason);
-if (contributorsResult.status === 'fulfilled') contributors = contributorsResult.value;
-else console.error('top_contributors_unavailable', contributorsResult.reason);
-if (contributorYearsResult.status === 'fulfilled') contributorYears.push(...contributorYearsResult.value);
-else console.error('top_contributor_years_unavailable', contributorYearsResult.reason);
-contributorYears = [...new Set(contributorYears)].sort((a, b) => b - a);
+const featuredRace = raceData(FEATURED_HANDLES);
+const range = contributorRange();
 const schema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
@@ -57,28 +19,17 @@ const schema = {
 
 <BaseLayout hideHeader>
   <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(schema)}></script>
-  {featuredRace ? (
-    <section class="home-battle-hero" aria-label="Featured GitHub contribution battle">
-      <RaceExperience data={featuredRace} featured />
-    </section>
-  ) : (
-    <section class="hero shell">
-      <div class="hero__badge"><span>●</span> free · open source · no sign-in</div>
-      <h1>Race your GitHub<br /><span>contribution history.</span></h1>
-      <p class="hero__lede">Put up to 12 public profiles into a contribution battle, then share the lineup.</p>
-      <RaceBuilder />
-    </section>
-  )}
-  {featuredRace && (
-    <section class="shell home-lineup-builder" aria-label="Create a GitHub contribution race">
-      <RaceBuilder initialHandles={featuredRace.racers.map((racer) => racer.login)} compact heading="Change the lineup" />
-    </section>
-  )}
+  <section class="home-battle-hero" aria-label="Featured GitHub contribution battle">
+    <RaceExperience data={featuredRace} featured />
+  </section>
+  <section class="shell home-lineup-builder" aria-label="Create a GitHub contribution race">
+    <RaceBuilder initialHandles={featuredRace.racers.map((racer) => racer.login)} compact heading="Change the lineup" />
+  </section>
   <div class="shell home-content">
-    <ActivityTables races={races} trendingRaces={trendingRaces} contributors={contributors} years={contributorYears} range={contributorRange} />
+    <ActivityTables races={latestRaces(10)} trendingRaces={trendingRaces(10)} contributors={topContributors(10)} years={range.years} range={range} />
     <section class="how-strip">
       <span class="eyebrow">what gets counted?</span>
-      <div><h2>Whatever GitHub puts in the squares.</h2><p>Commits, pull requests, issues, and reviews are combined exactly as GitHub reports them. We cache the public result; we never ask for repository access.</p><a href="/how-it-works">read the methodology →</a></div>
+      <div><h2>Whatever GitHub puts in the squares.</h2><p>Commits, pull requests, issues, and reviews, combined exactly as GitHub reports them. Every race here is a saved result from {SNAPSHOT_LABEL}, built from public data with zero repository access.</p><a href="/how-it-works">read the methodology →</a></div>
     </section>
   </div>
 </BaseLayout>

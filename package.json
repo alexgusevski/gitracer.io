@@ -18,30 +18,21 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro check && astro build",
-    "preview": "astro build && astro preview",
+    "preview": "npm run build && wrangler dev",
     "check": "astro check && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "deploy": "npm run build && wrangler deploy",
-    "generate-types": "wrangler types",
-    "db:migrate:local": "wrangler d1 migrations apply gitracer-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply gitracer-db --remote"
+    "deploy:preview": "npm run build && wrangler deploy --env preview"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^14.2.1",
-    "@cf-wasm/resvg": "0.3.5",
-    "@cf-wasm/satori": "0.3.7",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/mona-sans": "^5.3.0",
-    "astro": "^7.2.1",
-    "domhandler": "5.0.3",
-    "htmlparser2": "9.1.0",
-    "react": "^19.2.4"
+    "astro": "^7.2.1"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.6",
     "@types/node": "^26.2.0",
-    "@types/react": "^19.2.14",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18",
     "wrangler": "^4.72.0"
