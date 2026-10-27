@@ -1,0 +1,53 @@
+---
+// Shown instead of any action that used to need the GitRacer backend. Opening it makes no network request.
+---
+
+<dialog class="offline-notice" data-offline-notice aria-labelledby="offline-notice-title" aria-describedby="offline-notice-text">
+  <div class="offline-notice__body">
+    <h2 id="offline-notice-title" class="offline-notice__title" tabindex="-1">Backend offline</h2>
+    <p id="offline-notice-text">I've taken the GitRacer backend offline for now. I might bring it back later if I feel like it. Write to me <a href="https://x.com/alexgusevski" target="_blank" rel="noopener noreferrer">on X</a> if you really want me to bring it back :)</p>
+    <button class="button button--primary offline-notice__close" type="button" data-offline-close>Close</button>
+  </div>
+</dialog>
+
+<script>
+  const dialog = document.querySelector('[data-offline-notice]');
+  if (dialog instanceof HTMLDialogElement) {
+    let opener: HTMLElement | null = null;
+    const close = () => dialog.open && dialog.close();
+    dialog.querySelector('[data-offline-close]')?.addEventListener('click', close);
+    // A click on the backdrop (the dialog element itself, outside the body) closes it too.
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) close();
+    });
+    dialog.addEventListener('close', () => {
+      if (opener && opener.isConnected) opener.focus();
+      opener = null;
+    });
+    window.gitracerOffline = (trigger?: Element | null) => {
+      const active = trigger ?? document.activeElement;
+      opener = active instanceof HTMLElement ? active : null;
+      if (!dialog.open) dialog.showModal();
+      dialog.querySelector<HTMLElement>('[data-offline-close]')?.focus();
+    };
+  }
+</script>
+
+<style>
+  .offline-notice {
+    width: min(440px, calc(100vw - 32px));
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    background: var(--panel);
+    color: var(--ink);
+    box-shadow: 0 24px 60px rgb(0 0 0 / 28%);
+  }
+  .offline-notice::backdrop { background: rgb(5 7 12 / 55%); backdrop-filter: blur(2px); }
+  .offline-notice__body { display: grid; gap: 16px; padding: 24px; }
+  .offline-notice__title { margin: 0; font-family: var(--mono); font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  .offline-notice__title:focus { outline: none; }
+  .offline-notice p { margin: 0; font-size: 17px; line-height: 1.55; }
+  .offline-notice a { color: var(--race); font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
+  .offline-notice__close { justify-self: end; }
+</style>
