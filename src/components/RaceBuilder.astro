@@ -119,8 +119,8 @@ const { initialHandles = [], compact = false, heading } = Astro.props;
       if (input.value.trim()) add(input.value);
       const racers = handles();
       if (!racers.length) return showError('Add at least one GitHub username.');
-      window.posthog?.capture?.('race_created', { racer_count: racers.length });
-      window.location.href = `/${racers.join('+')}`;
+      // The backend is offline: new lineups can't be fetched, so explain instead of navigating.
+      window.gitracerOffline?.(submit);
     });
     update();
   });

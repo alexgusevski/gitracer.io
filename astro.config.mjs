@@ -1,13 +1,13 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
-import cloudflare from '@astrojs/cloudflare';
 
+// Fully static build: every page is prerendered from the saved snapshot in src/data/snapshot.json.
 export default defineConfig({
   site: 'https://gitracer.io',
-  output: 'server',
-  session: false,
-  adapter: cloudflare({ imageService: 'passthrough' }),
-  security: { checkOrigin: true },
+  output: 'static',
+  // `how-it-works.html` and `levelsio+marclou.html`, so URLs keep no trailing slash.
+  build: { format: 'file' },
+  trailingSlash: 'never',
   vite: {
     build: { assetsInlineLimit: 0 },
   },

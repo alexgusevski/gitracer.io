@@ -2,34 +2,35 @@
 
 Race up to 12 public GitHub contribution histories on one shareable graph.
 
-[Try GitRacer](https://gitracer.io) · [MIT license](./LICENSE)
+[See the saved races](https://gitracer.io) · [MIT license](./LICENSE)
+
+GitRacer is now a static site. Every race page is prerendered from a saved snapshot
+(`src/data/snapshot.json`, taken 27 Oct 2026). The backend that fetched new profiles
+from GitHub is offline, so building a new lineup, refreshing, or switching periods
+shows a short notice instead.
 
 ## Features
 
-- Permanent race URLs such as `/octocat+torvalds`
-- Calendar year, last 30 days, last 365 days, and lifetime views
-- Contribution totals, active days, streaks, leader margins, and hover details
-- D1-backed GitHub data caching and R2-backed avatar caching
-- Dynamic Open Graph images for shared races
-- Optional cookieless PostHog analytics
+- Permanent race URLs such as `/levelsio+marclou` for every saved race
+- Battle mode and cumulative graph mode
+- Contribution totals, active days, streaks, and leader margins
 - Responsive light, dark, and system themes
+- No analytics, no cookies
 
 ## Stack
 
-Astro, TypeScript, Cloudflare Workers, D1, R2, and the GitHub GraphQL API.
+Astro (static output) served by Cloudflare Workers Static Assets with a tiny router
+(`worker/index.js`) for the www and HTTPS redirects, `410 Gone` on old API paths,
+and security headers.
 
 ## Run locally
 
-Requires Node.js 22.12+ and a GitHub token that can read public contribution data.
+Requires Node.js 22.12+.
 
 ```bash
-npm install
-cp .env.example .dev.vars
-npm run db:migrate:local
+npm ci
 npm run dev
 ```
-
-Set `GITHUB_TOKEN` and a long random `RATE_LIMIT_SECRET` in `.dev.vars`. `POSTHOG_KEY` is optional; analytics remain disabled when it is absent.
 
 ## Verify
 
@@ -41,8 +42,13 @@ npm run build
 
 ## Deploy
 
-The project targets Cloudflare Workers. `wrangler.jsonc` declares the D1 and R2 bindings, and `.github/workflows/deploy.yml` deploys `main` after verification.
+Manual only:
 
-Production requires the Worker secrets `GITHUB_TOKEN` and `RATE_LIMIT_SECRET`, plus the GitHub Actions secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. `POSTHOG_KEY` is optional.
+```bash
+npm run deploy:preview   # gitracer-static on workers.dev (noindex)
+npm run deploy           # production Worker `gitracer` on gitracer.io + www
+```
+
+`scripts/export-snapshot.mjs` is the one-off, read-only export that produced the snapshot.
 
 GitRacer is not affiliated with GitHub.

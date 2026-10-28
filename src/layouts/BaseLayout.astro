@@ -3,6 +3,8 @@ import '@fontsource-variable/jetbrains-mono';
 import '@fontsource-variable/mona-sans';
 import '../styles/global.css';
 import GitHubLink from '../components/GitHubLink.astro';
+import OfflineNotice from '../components/OfflineNotice.astro';
+import { avatarFor } from '../lib/snapshot';
 import SponsorRails from '../components/SponsorRails.astro';
 import ThemeToggle from '../components/ThemeToggle.astro';
 
@@ -17,14 +19,17 @@ interface Props {
   image?: string;
   noindex?: boolean;
   pageType?: 'website' | 'profile';
+  hideHeader?: boolean;
 }
 const {
   title = 'GitRacer — Race GitHub contribution graphs',
   description = 'Put up to 12 public GitHub profiles on one contribution race. Filter by year, last 30 days, last 365 days, or lifetime, then share the result.',
-  canonical = new URL(Astro.url.pathname, Astro.site).toString(),
+  // Static `file` builds report `/how-it-works.html` and `/index.html`; canonical URLs have no extension.
+  canonical = new URL(Astro.url.pathname.replace(/(?:\/index)?\.html$/, '') || '/', Astro.site).toString(),
   image = new URL('/og/default.png', Astro.site).toString(),
   noindex = false,
   pageType = 'website',
+  hideHeader = false,
 } = Astro.props;
 ---
 
@@ -61,20 +66,22 @@ const {
     <slot name="head" />
   </head>
   <body>
-    <header class="site-header">
-      <div class="site-header__inner">
-        <a class="wordmark" href="/" aria-label="GitRacer home"><span aria-hidden="true"><img src="/icon.svg" alt="" /></span><b>gitracer</b><i>.io</i></a>
-        <nav aria-label="Main navigation">
-          <a href="/">new race</a>
-          <a href="/how-it-works">how it works</a>
-          {SPONSOR_LINKS_ENABLED && <a href="/sponsor">sponsor</a>}
-        </nav>
-        <div class="site-header__actions">
-          <GitHubLink compact label="GitHub" />
-          <ThemeToggle compact />
+    {!hideHeader && (
+      <header class="site-header">
+        <div class="site-header__inner">
+          <a class="wordmark" href="/" aria-label="GitRacer home"><span aria-hidden="true"><img src="/icon.svg" alt="" /></span><b>gitracer</b><i>.io</i></a>
+          <nav aria-label="Main navigation">
+            <a href="/">saved races</a>
+            <a href="/how-it-works">how it works</a>
+            {SPONSOR_LINKS_ENABLED && <a href="/sponsor">sponsor</a>}
+          </nav>
+          <div class="site-header__actions">
+            <GitHubLink compact label="GitHub" />
+            <ThemeToggle compact />
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+    )}
     {SPONSORS_ENABLED && <SponsorRails />}
     <main><slot /></main>
     <footer class="site-footer">
@@ -82,14 +89,14 @@ const {
         <a class="wordmark wordmark--small" href="/"><span aria-hidden="true"><img src="/icon.svg" alt="" /></span><b>gitracer</b><i>.io</i></a>
         <p>Public GitHub contributions, lined up fairly. Not affiliated with GitHub.</p>
         <a class="builder-credit" href="https://x.com/alexgusevski" rel="me noreferrer" aria-label="Built by Alex Gusevski on X">
-          <img src="/avatar/alexgusevski" alt="" width="34" height="34" />
+          <img src={avatarFor('alexgusevski', 68)} alt="" width="34" height="34" referrerpolicy="no-referrer" />
           <span>built by <b>@alexgusevski</b></span>
         </a>
         <nav aria-label="Footer navigation"><a href="/privacy">privacy</a><a href="/how-it-works">methodology</a><GitHubLink label="source" />{SPONSOR_LINKS_ENABLED && <a href="/sponsor">sponsor</a>}</nav>
-        <ThemeToggle />
+        <ThemeToggle compact />
       </div>
     </footer>
-    <script is:inline src="/analytics.js" defer></script>
+    <OfflineNotice />
     <script>
       type ThemeMode = 'system' | 'light' | 'dark';
       const modes: ThemeMode[] = ['system', 'light', 'dark'];

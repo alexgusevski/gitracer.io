@@ -1,12 +1,24 @@
 ---
 import type { RaceData } from '../lib/types';
+import BattleGame from './BattleGame.astro';
+import GitHubLink from './GitHubLink.astro';
+import ThemeToggle from './ThemeToggle.astro';
+import { personHref, SNAPSHOT_AT, SNAPSHOT_LABEL } from '../lib/snapshot';
 
-interface Props { data: RaceData }
-const { data } = Astro.props;
-const currentYear = new Date().getUTCFullYear();
-const fetchedTimes = data.racers.map((racer) => racer.fetchedAt).filter((value): value is string => Boolean(value));
-const fetchedAt = fetchedTimes.sort()[0] ?? data.generatedAt;
+interface Props {
+  data: RaceData;
+  featured?: boolean;
+}
+const { data, featured = false } = Astro.props;
+const currentYear = SNAPSHOT_AT.getUTCFullYear();
+const savedAt = SNAPSHOT_AT.toISOString();
 const safeJson = JSON.stringify(data).replace(/</g, '\\u003c');
+const rangeOptions = [
+  { value: 'last30', label: 'last 30 days' },
+  { value: 'last365', label: 'last 365 days' },
+  ...data.availableYears.map((year) => ({ value: `year:${year}`, label: year === currentYear ? `${year} · this year` : String(year) })),
+  { value: 'lifetime', label: 'lifetime' },
+];
 const leaderText = data.racers.length === 1
   ? `@${data.racers[0]?.login} made ${data.racers[0]?.total.toLocaleString()} contributions.`
   : data.leader?.tied
@@ -14,62 +26,96 @@ const leaderText = data.racers.length === 1
     : `@${data.leader?.login} is leading by ${data.leader?.lead.toLocaleString()} contributions.`;
 ---
 
-<section class="race-experience" data-race-experience data-slug={data.slug}>
+<section class:list={['race-experience', { 'race-experience--featured': featured }]} data-race-experience data-slug={data.slug} data-share-path={featured ? `/${data.slug}` : ''}>
   <div class="race-titlebar">
-    <div>
-      <span class="eyebrow"><i class="live-pip"></i> race in progress</span>
-      <h1 data-leader-copy>{leaderText}</h1>
-      <p>Every racer starts at zero on <span data-range-start>{data.range.start}</span>. All public GitHub contribution types count.</p>
+    <div class="race-leading">
+      <div class="race-summary">
+        <span class="eyebrow">saved results · {SNAPSHOT_LABEL}</span>
+        <h1 data-leader-copy>{leaderText}</h1>
+        <p>Every racer starts at zero on <span data-range-start>{data.range.start}</span>. All public GitHub contribution types count.</p>
+      </div>
+      {featured && (
+        <select class="featured-range-select" data-range-select aria-label="Race period">
+          {rangeOptions.map((option) => <option value={option.value} selected={data.range.key === option.value}>{option.label}</option>)}
+        </select>
+      )}
     </div>
+    {featured && (
+      <a class="wordmark featured-wordmark" href="/" aria-label="GitRacer home">
+        <span aria-hidden="true"><img src="/icon.svg" alt="" /></span><b>gitracer</b><i>.io</i>
+      </a>
+    )}
     <div class="race-actions">
-      <button class="button button--quiet" type="button" data-share-race><span aria-hidden="true">↗</span> share race</button>
-      <button class="button button--quiet" type="button" data-refresh-race hidden={!data.canRefresh}><span aria-hidden="true">↻</span> refresh</button>
+      {featured && <div class="race-freshness"><span class="cache-light"></span><span>saved <time datetime={savedAt}>{SNAPSHOT_LABEL}</time></span></div>}
+      <button class="button button--quiet race-mode-toggle" type="button" data-mode-toggle aria-pressed="true">
+        <span class="race-mode-icon" data-battle-mode-icon aria-hidden="true" hidden>⚔</span>
+        <span class="race-mode-icon" data-graph-mode-icon aria-hidden="true">
+          <svg viewBox="0 0 20 20"><path d="M2.5 15.5 6.8 11l3 2.4 6-7"/><path d="M14 6.4h2.2v2.3"/></svg>
+        </span>
+        <span data-mode-label>graph mode</span>
+      </button>
+      {!featured && (
+        <button class="button button--quiet race-action-icon" type="button" data-share-race aria-label="Share race" title="Share race">
+          <span data-share-icon aria-hidden="true">↗</span>
+          <span data-share-copied-icon aria-hidden="true" hidden>✓</span>
+        </button>
+      )}
+      <button class="button button--quiet race-action-icon" type="button" data-refresh-race aria-label="Refresh race data" title="Refresh race data" hidden={!data.canRefresh}>
+        <span aria-hidden="true">↻</span>
+      </button>
+      {featured && <GitHubLink compact />}
+      {featured && <ThemeToggle compact />}
     </div>
   </div>
 
-  <div class="race-toolbar">
-    <label>
-      <span>period</span>
-      <select data-range-select aria-label="Race period">
-        <option value="last30" selected={data.range.key === 'last30'}>last 30 days</option>
-        <option value="last365" selected={data.range.key === 'last365'}>last 365 days</option>
-        {data.availableYears.map((year) => <option value={`year:${year}`} selected={data.range.key === `year:${year}`}>{year === currentYear ? `${year} · this year` : year}</option>)}
-        <option value="lifetime" selected={data.range.key === 'lifetime'}>lifetime</option>
-      </select>
-    </label>
-    <div class="race-freshness"><span class="cache-light"></span><span>data fetched <time datetime={fetchedAt} data-fetched-time>{fetchedAt}</time></span></div>
-  </div>
+  {!featured && (
+    <div class="race-toolbar">
+      <label>
+        <span>period</span>
+        <select data-range-select aria-label="Race period">
+          {rangeOptions.map((option) => <option value={option.value} selected={data.range.key === option.value}>{option.label}</option>)}
+        </select>
+      </label>
+      <div class="race-freshness"><span class="cache-light"></span><span>saved <time datetime={savedAt}>{SNAPSHOT_LABEL}</time></span></div>
+    </div>
+  )}
 
-  <div class="chart-shell" data-chart-shell aria-label={`Cumulative GitHub contributions for ${data.racers.map((racer) => racer.login).join(', ')}`}>
-    <div class="chart-y-label">cumulative contributions</div>
-    <svg class="race-chart" data-race-chart viewBox="0 0 1000 440" role="img"></svg>
-    <span class="chart-watermark" aria-hidden="true">gitracer.io</span>
-    <div class="chart-tooltip" data-chart-tooltip hidden></div>
-    <div class="chart-loading" data-chart-loading hidden><span></span> fetching public contributions…</div>
+  <div data-graph-panel hidden>
+    <div class="chart-shell" data-chart-shell aria-label={`Cumulative GitHub contributions for ${data.racers.map((racer) => racer.login).join(', ')}`}>
+      <div class="chart-y-label">cumulative contributions</div>
+      <svg class="race-chart" data-race-chart viewBox="0 0 1000 440" role="img"></svg>
+      <span class="chart-watermark" aria-hidden="true">gitracer.io</span>
+      <div class="chart-tooltip" data-chart-tooltip hidden></div>
+    </div>
   </div>
+  <div data-battle-panel><BattleGame data={data} embedded hero={featured} active /></div>
   <p class="chart-error" data-chart-error role="alert"></p>
 
-  <div class="racer-grid" data-racer-grid>
-    {data.racers.map((racer, index) => (
-      <article class="racer-card" style={`--racer-color:${racer.color}`} data-racer-index={index}>
-        <a class="racer-card__person" href={`/${racer.login}`} data-track="profile_opened" data-profile-handle={racer.login}>
-          <img src={racer.avatarUrl} alt={`${racer.login}'s GitHub avatar`} width="56" height="56" />
-          <span><strong>{racer.displayName || racer.login}</strong><small>@{racer.login} ↗</small></span>
-        </a>
-        <div class="racer-card__stats">
-          <span><b data-stat="total">{racer.total.toLocaleString()}</b><small>contributions</small></span>
-          <span><b data-stat="activeDays">{racer.activeDays.toLocaleString()}</b><small>active days</small></span>
-          <span><b data-stat="longestStreak">{racer.longestStreak.toLocaleString()}</b><small>best streak</small></span>
-        </div>
-      </article>
-    ))}
-  </div>
-  <div class="race-note"><span aria-hidden="true">i</span><p>GitHub’s graph combines commits, pull requests, issues, and reviews that GitHub counts as contributions. Private activity only appears if the profile owner chose to expose anonymized private contribution counts.</p></div>
+  {!featured && (
+    <>
+      <div class="racer-grid" data-racer-grid>
+        {data.racers.map((racer, index) => (
+          <article class="racer-card" style={`--racer-color:${racer.color}`} data-racer-index={index}>
+            <a class="racer-card__person" href={personHref(racer.login)} data-profile-handle={racer.login}>
+              <img src={racer.avatarUrl} alt={`${racer.login}'s GitHub avatar`} width="56" height="56" />
+              <span><strong>{racer.displayName || racer.login}</strong><small>@{racer.login} ↗</small></span>
+            </a>
+            <div class="racer-card__stats">
+              <span><b data-stat="total">{racer.total.toLocaleString()}</b><small>contributions</small></span>
+              <span><b data-stat="activeDays">{racer.activeDays.toLocaleString()}</b><small>active days</small></span>
+              <span><b data-stat="longestStreak">{racer.longestStreak.toLocaleString()}</b><small>best streak</small></span>
+            </div>
+          </article>
+        ))}
+      </div>
+      <div class="race-note"><span aria-hidden="true">i</span><p>GitHub’s graph combines commits, pull requests, issues, and reviews that GitHub counts as contributions. Private activity only appears if the profile owner chose to expose anonymized private contribution counts.</p></div>
+    </>
+  )}
   <script is:inline type="application/json" data-race-data set:html={safeJson}></script>
 </section>
 
 <script>
-  // @ts-nocheck -- this is a progressively enhanced SVG renderer over server-validated race JSON.
+  // @ts-nocheck -- this is a progressively enhanced SVG renderer over build-time race JSON.
   const compactNumber = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
   const exactNumber = new Intl.NumberFormat('en');
   const dateLabel = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
@@ -82,9 +128,11 @@ const leaderText = data.racers.length === 1
     const shell = root.querySelector('[data-chart-shell]');
     const tooltip = root.querySelector('[data-chart-tooltip]');
     const select = root.querySelector('[data-range-select]');
-    const loading = root.querySelector('[data-chart-loading]');
-    const errorBox = root.querySelector('[data-chart-error]');
+    const graphPanel = root.querySelector('[data-graph-panel]');
+    const battlePanel = root.querySelector('[data-battle-panel]');
+    const modeButton = root.querySelector('[data-mode-toggle]');
     let state = JSON.parse(json?.textContent || '{}');
+    let viewMode = 'battle';
     let chartRenderId = 0;
     const chartInstanceId = Math.random().toString(36).slice(2);
     if (!(svg instanceof SVGElement) || !(shell instanceof HTMLElement) || !(tooltip instanceof HTMLElement)) return;
@@ -141,7 +189,7 @@ const leaderText = data.racers.length === 1
         const reveal = svg.querySelector('[data-chart-reveal]');
         const startedAt = performance.now();
         const draw = (now) => {
-          const progress = Math.min(1, (now - startedAt) / 950);
+          const progress = Math.max(0, Math.min(1, (now - startedAt) / 950));
           const eased = 1 - Math.pow(1 - progress, 3);
           reveal?.setAttribute('width', String(clipWidth * eased));
           if (progress < 1) requestAnimationFrame(draw);
@@ -150,60 +198,8 @@ const leaderText = data.racers.length === 1
         requestAnimationFrame(draw);
       }
     };
-    const updateCopy = () => {
-      const first = [...state.racers].sort((a, b) => b.total - a.total)[0];
-      const second = [...state.racers].sort((a, b) => b.total - a.total)[1];
-      let copy = `@${first.login} made ${exactNumber.format(first.total)} contributions.`;
-      if (second) copy = first.total === second.total ? `It's a tie at ${exactNumber.format(first.total)} contributions.` : `@${first.login} is leading by ${exactNumber.format(first.total - second.total)} contributions.`;
-      const leader = root.querySelector('[data-leader-copy]');
-      const start = root.querySelector('[data-range-start]');
-      if (leader) leader.textContent = copy;
-      if (start) start.textContent = state.range.start;
-      root.querySelectorAll('[data-racer-index]').forEach((card) => {
-        const racer = state.racers[Number(card.getAttribute('data-racer-index'))];
-        if (!racer) return;
-        ['total', 'activeDays', 'longestStreak'].forEach((key) => {
-          const node = card.querySelector(`[data-stat="${key}"]`);
-          if (node) node.textContent = exactNumber.format(racer[key]);
-        });
-      });
-      const refresh = root.querySelector('[data-refresh-race]');
-      if (refresh instanceof HTMLButtonElement) refresh.hidden = !state.canRefresh;
-      const times = state.racers.map((racer) => racer.fetchedAt).filter(Boolean).sort();
-      const time = root.querySelector('[data-fetched-time]');
-      if (time instanceof HTMLTimeElement) {
-        time.dateTime = times[0] || state.generatedAt;
-        time.dataset.iso = time.dateTime;
-      }
-      renderTimes();
-    };
-    const renderTimes = () => root.querySelectorAll('[data-fetched-time]').forEach((time) => {
-      const iso = time.getAttribute('datetime');
-      if (!iso) return;
-      const seconds = Math.max(1, Math.floor((Date.now() - Date.parse(iso)) / 1000));
-      time.textContent = seconds < 60 ? `${seconds}s ago` : seconds < 3600 ? `${Math.floor(seconds / 60)}m ago` : seconds < 86400 ? `${Math.floor(seconds / 3600)}h ago` : `${Math.floor(seconds / 86400)}d ago`;
-    });
-    const showLoading = (active) => {
-      if (loading instanceof HTMLElement) loading.hidden = !active;
-      if (select instanceof HTMLSelectElement) select.disabled = active;
-      if (errorBox) errorBox.textContent = '';
-    };
-    const fetchRace = async (range, refresh = false) => {
-      showLoading(true);
-      try {
-        const path = refresh ? `/api/refresh/${root.dataset.slug}` : `/api/race/${root.dataset.slug}.json`;
-        const response = await fetch(`${path}?range=${encodeURIComponent(range)}`, { method: refresh ? 'POST' : 'GET', headers: { Accept: 'application/json' } });
-        const next = await response.json();
-        if (!response.ok) throw new Error(next.error || 'Could not load this race.');
-        state = next;
-        renderChart();
-        updateCopy();
-        history.replaceState(null, '', `${location.pathname}?range=${encodeURIComponent(range)}`);
-        window.posthog?.capture?.(refresh ? 'race_refreshed' : 'race_range_changed', { range, racer_count: state.racers.length });
-      } catch (error) {
-        if (errorBox) errorBox.textContent = error instanceof Error ? error.message : 'Could not load this race.';
-      } finally { showLoading(false); }
-    };
+    // Period changes and refreshes need the backend, which is offline: explain instead of fetching.
+    const showOffline = (trigger) => window.gitracerOffline?.(trigger);
 
     svg.addEventListener('pointermove', (event) => {
       const rect = svg.getBoundingClientRect();
@@ -225,18 +221,44 @@ const leaderText = data.racers.length === 1
       tooltip.hidden = true;
       svg.querySelector('[data-crosshair]')?.setAttribute('hidden', '');
     });
-    if (select instanceof HTMLSelectElement) select.addEventListener('change', () => fetchRace(select.value));
-    root.querySelector('[data-refresh-race]')?.addEventListener('click', () => fetchRace(state.range.key, true));
+    if (select instanceof HTMLSelectElement) select.addEventListener('change', () => {
+      select.value = state.range.key;
+      showOffline(select);
+    });
+    modeButton?.addEventListener('click', () => {
+      viewMode = viewMode === 'graph' ? 'battle' : 'graph';
+      if (graphPanel instanceof HTMLElement) graphPanel.hidden = viewMode !== 'graph';
+      if (battlePanel instanceof HTMLElement) battlePanel.hidden = viewMode !== 'battle';
+      const battleIcon = modeButton.querySelector('[data-battle-mode-icon]');
+      const graphIcon = modeButton.querySelector('[data-graph-mode-icon]');
+      const label = modeButton.querySelector('[data-mode-label]');
+      if (battleIcon instanceof HTMLElement) battleIcon.hidden = viewMode === 'battle';
+      if (graphIcon instanceof HTMLElement) graphIcon.hidden = viewMode !== 'battle';
+      if (label) label.textContent = viewMode === 'battle' ? 'graph mode' : 'battle mode';
+      modeButton.setAttribute('aria-pressed', String(viewMode === 'battle'));
+      if (viewMode === 'battle') window.dispatchEvent(new CustomEvent('gitracer:battle-activate', { detail: { slug: root.dataset.slug, data: state } }));
+    });
+    root.querySelector('[data-refresh-race]')?.addEventListener('click', (event) => showOffline(event.currentTarget));
     root.querySelector('[data-share-race]')?.addEventListener('click', async (event) => {
       const button = event.currentTarget;
+      const shareUrl = new URL(root.dataset.sharePath || location.pathname, location.origin);
       try {
-        if (navigator.share) await navigator.share({ title: document.title, text: root.querySelector('[data-leader-copy]')?.textContent || '', url: location.href });
-        else { await navigator.clipboard.writeText(location.href); if (button instanceof HTMLElement) button.textContent = '✓ link copied'; }
-        window.posthog?.capture?.('race_shared', { racer_count: state.racers.length, range: state.range.key });
+        if (navigator.share) await navigator.share({ title: document.title, text: root.querySelector('[data-leader-copy]')?.textContent || '', url: shareUrl.href });
+        else if (button instanceof HTMLButtonElement) {
+          await navigator.clipboard.writeText(shareUrl.href);
+          const shareIcon = button.querySelector('[data-share-icon]');
+          const copiedIcon = button.querySelector('[data-share-copied-icon]');
+          if (shareIcon instanceof HTMLElement) shareIcon.hidden = true;
+          if (copiedIcon instanceof HTMLElement) copiedIcon.hidden = false;
+          button.ariaLabel = 'Race link copied';
+          window.setTimeout(() => {
+            if (shareIcon instanceof HTMLElement) shareIcon.hidden = false;
+            if (copiedIcon instanceof HTMLElement) copiedIcon.hidden = true;
+            button.ariaLabel = 'Share race';
+          }, 1600);
+        }
       } catch {}
     });
     renderChart();
-    updateCopy();
-    setInterval(renderTimes, 60_000);
   });
 </script>
