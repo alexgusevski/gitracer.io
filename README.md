@@ -25,7 +25,7 @@ and security headers.
 
 ## Run locally
 
-Requires Node.js 22.12+.
+Requires Node.js 26 (see `.nvmrc`).
 
 ```bash
 npm ci
