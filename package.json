@@ -32,7 +32,9 @@
   },
   "devDependencies": {
     "@astrojs/check": "0.9.12",
+    "@mixmark-io/domino": "2.2.0",
     "@types/node": "26.6.6",
+    "turndown": "7.2.5",
     "typescript": "6.0.3",
     "vitest": "5.0.5",
     "wrangler": "4.156.0"

@@ -1,5 +1,6 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import agentMarkdown from './scripts/agent-markdown.mjs';
 
 // Fully static build: every page is prerendered from the saved snapshot in src/data/snapshot.json.
 export default defineConfig({
@@ -8,6 +9,7 @@ export default defineConfig({
   // `how-it-works.html` and `levelsio+marclou.html`, so URLs keep no trailing slash.
   build: { format: 'file' },
   trailingSlash: 'never',
+  integrations: [agentMarkdown()],
   vite: {
     build: { assetsInlineLimit: 0 },
   },
