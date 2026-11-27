@@ -4,6 +4,7 @@ import '@fontsource-variable/mona-sans';
 import '../styles/global.css';
 import GitHubLink from '../components/GitHubLink.astro';
 import OfflineNotice from '../components/OfflineNotice.astro';
+import { markdownPath } from '../lib/page-paths.mjs';
 import { avatarFor } from '../lib/snapshot';
 import SponsorRails from '../components/SponsorRails.astro';
 import ThemeToggle from '../components/ThemeToggle.astro';
@@ -46,6 +47,7 @@ const {
     <link rel="mask-icon" href="/mask-icon.svg" color="#5146b8" />
     <meta name="robots" content={noindex ? 'noindex, follow' : 'index, follow'} />
     <link rel="canonical" href={canonical} />
+    {!noindex && <link rel="alternate" type="text/markdown" href={new URL(markdownPath(new URL(canonical).pathname), canonical).href} />}
     <meta property="og:type" content={pageType} />
     <meta property="og:site_name" content="GitRacer" />
     <meta property="og:title" content={title} />
